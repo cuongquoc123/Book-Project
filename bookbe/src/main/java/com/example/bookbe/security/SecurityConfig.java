@@ -1,0 +1,62 @@
+package com.example.bookbe.security;
+
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+import com.example.bookbe.enums.Role;
+
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity
+public class SecurityConfig {
+    private final JwtAuthenticationEntryPoint authenticationEntryPoint;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    public SecurityConfig(JwtAuthenticationEntryPoint authenticationEntryPoint,
+                          JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.authenticationEntryPoint = authenticationEntryPoint;
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
+        return configuration.getAuthenticationManager();
+    }
+     @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                // 1. Endpoints công khai (Đăng ký & Đăng nhập)
+                .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                // 2. Yêu cầu đã đăng nhập cho các thao tác Auth khác
+                .requestMatchers("/api/auth/refresh", "/api/auth/logout", "/api/auth/me").authenticated()
+                
+                // 3. Super Admin: Toàn quyền với các API quản trị cao cấp
+                .requestMatchers("/api/super-admin/**").hasRole(Role.SUPER_ADMIN.name())
+                // 4. Admin & Super Admin: Các API quản lý tài nguyên (Sách, Category...)
+                .requestMatchers("/api/admin/**").hasAnyRole(Role.ADMIN.name(), Role.SUPER_ADMIN.name())
+                // 5. Client / User: Các API cá nhân và đơn mua
+                .requestMatchers("/api/users/**", "/api/purchases/**").hasAnyRole(Role.CLIENT.name(), Role.ADMIN.name(), Role.SUPER_ADMIN.name())
+                // Tất cả các request còn lại phải đăng nhập
+                .anyRequest().authenticated()
+            );
+        http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+}
