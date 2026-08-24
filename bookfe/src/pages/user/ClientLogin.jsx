@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, User, ArrowRight } from 'lucide-react';
-import authApi from '../../services/authApi';
+import { loginUser, registerUser } from '../../services/api';
 import FormInput from '../../components/FormInput';
 import AlertToast from '../../components/AlertToast';
 import SocialAuthButtons from '../../components/SocialAuthButtons';
@@ -50,42 +50,37 @@ export default function ClientLogin() {
 
     setLoading(true);
 
-    try {
-      if (activeTab === 'login') {
-        const result = await authApi.login({
-          username,
-          password,
-          roleHint: 'CLIENT',
-        });
+    if (activeTab === 'login') {
+      const [err] = await loginUser({
+        username,
+        password,
+        roleHint: 'CLIENT',
+      });
 
-        if (result.success) {
-          setAlert({ type: 'success', message: 'Đăng nhập thành công! Đang chuyển hướng đến Dashboard...' });
-          setTimeout(() => {
-            navigate('/dashboard', { replace: true });
-          }, 1000);
-        } else {
-          setAlert({ type: 'error', message: result.message });
-        }
+      if (err) {
+        setAlert({ type: 'error', message: err });
       } else {
-        const result = await authApi.register({
-          username,
-          email,
-          password,
-        });
-
-        if (result.success) {
-          setAlert({ type: 'success', message: 'Đăng ký thành công! Hãy đăng nhập bằng tài khoản mới.' });
-          setActiveTab('login');
-        } else {
-          setAlert({ type: 'error', message: result.message });
-        }
+        setAlert({ type: 'success', message: 'Đăng nhập thành công! Đang chuyển hướng đến Dashboard...' });
+        setTimeout(() => {
+          navigate('/dashboard', { replace: true });
+        }, 1000);
       }
-    } catch (err) {
-      // Server errors (500 or connection failure) are automatically caught by axiosClient interceptor
-      console.error('API call exception:', err);
-    } finally {
-      setLoading(false);
+    } else {
+      const [err] = await registerUser({
+        username,
+        email,
+        password,
+      });
+
+      if (err) {
+        setAlert({ type: 'error', message: err });
+      } else {
+        setAlert({ type: 'success', message: 'Đăng ký thành công! Hãy đăng nhập bằng tài khoản mới.' });
+        setActiveTab('login');
+      }
     }
+
+    setLoading(false);
   };
 
   return (

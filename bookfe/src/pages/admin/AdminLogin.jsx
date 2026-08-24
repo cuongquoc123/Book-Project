@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, Eye, EyeOff, User, ArrowRight, Server, Shield, Database, Activity } from 'lucide-react';
-import authApi from '../../services/authApi';
+import { loginUser } from '../../services/api';
 import FormInput from '../../components/FormInput';
 import AlertToast from '../../components/AlertToast';
 import { isAuthenticated } from '../../utils/auth';
@@ -40,29 +40,24 @@ export default function AdminLogin() {
 
     setLoading(true);
 
-    try {
-      const result = await authApi.login({
-        username,
-        password,
-      });
+    const [err] = await loginUser({
+      username,
+      password,
+    });
 
-      if (result.success) {
-        setAlert({
-          type: 'success',
-          message: 'Xác thực thành công! Đang chuyển hướng đến Dashboard...',
-        });
-        setTimeout(() => {
-          navigate('/dashboard', { replace: true });
-        }, 1000);
-      } else {
-        setAlert({ type: 'error', message: result.message });
-      }
-    } catch (err) {
-      // Server errors (500 or connection failure) are automatically caught by axiosClient interceptor
-      console.error('Admin API call exception:', err);
-    } finally {
-      setLoading(false);
+    if (err) {
+      setAlert({ type: 'error', message: err });
+    } else {
+      setAlert({
+        type: 'success',
+        message: 'Xác thực thành công! Đang chuyển hướng đến Dashboard...',
+      });
+      setTimeout(() => {
+        navigate('/dashboard', { replace: true });
+      }, 1000);
     }
+
+    setLoading(false);
   };
 
   return (
@@ -96,7 +91,7 @@ export default function AdminLogin() {
             {/* System Status Metrics Grid */}
             <div className="admin-system-metrics-grid">
               <div className="admin-metric-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
+                <div style={{ display: 'flex', items: 'center', gap: '8px', color: '#10B981', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
                   <Server size={14} /> Server Status
                 </div>
                 <div className="admin-metric-value" style={{ color: '#10B981', fontSize: '1.25rem' }}>Online (8080)</div>
@@ -104,7 +99,7 @@ export default function AdminLogin() {
               </div>
 
               <div className="admin-metric-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#4F46E5', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
+                <div style={{ display: 'flex', items: 'center', gap: '8px', color: '#4F46E5', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
                   <Database size={14} /> Database
                 </div>
                 <div className="admin-metric-value" style={{ color: '#4F46E5', fontSize: '1.25rem' }}>MySQL Active</div>
@@ -112,7 +107,7 @@ export default function AdminLogin() {
               </div>
 
               <div className="admin-metric-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0284C7', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
+                <div style={{ display: 'flex', items: 'center', gap: '8px', color: '#0284C7', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
                   <Shield size={14} /> Security Mode
                 </div>
                 <div className="admin-metric-value" style={{ color: '#0284C7', fontSize: '1.25rem' }}>JWT Auth</div>
@@ -120,7 +115,7 @@ export default function AdminLogin() {
               </div>
 
               <div className="admin-metric-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#7C3AED', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
+                <div style={{ display: 'flex', items: 'center', gap: '8px', color: '#7C3AED', fontSize: '0.8rem', fontWeight: 700, marginBottom: '4px' }}>
                   <Activity size={14} /> Latency
                 </div>
                 <div className="admin-metric-value" style={{ color: '#7C3AED', fontSize: '1.25rem' }}>&lt; 5ms</div>

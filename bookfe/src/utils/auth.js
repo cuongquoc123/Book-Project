@@ -6,6 +6,10 @@ export function getToken() {
   return localStorage.getItem('token');
 }
 
+export function getRefreshToken() {
+  return localStorage.getItem('refreshToken');
+}
+
 export function getUser() {
   const userStr = localStorage.getItem('user');
   if (!userStr) return null;
@@ -16,50 +20,57 @@ export function getUser() {
   }
 }
 
+export function setAuthData({ accessToken, refreshToken, user }) {
+  if (accessToken) localStorage.setItem('token', accessToken);
+  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+  if (user) localStorage.setItem('user', typeof user === 'string' ? user : JSON.stringify(user));
+}
+
 export function clearAuth() {
   localStorage.removeItem('token');
+  localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
 }
 
 /**
- * Check if the JWT token is valid and not expired
+ * Check if a JWT token is expired
  */
-export function isTokenValid(token) {
-  if (!token) return false;
+export function isTokenExpired(token) {
+  if (!token) return true;
 
   try {
-    // Decode base64 payload of JWT
     const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return false;
+    if (!payloadBase64) return true;
 
     const decodedPayload = JSON.parse(atob(payloadBase64));
-    
-    // Check expiration timestamp (exp is in seconds)
     if (decodedPayload.exp) {
       const currentTime = Math.floor(Date.now() / 1000);
-      if (decodedPayload.exp < currentTime) {
-        console.warn('JWT token has expired.');
-        return false;
-      }
+      return decodedPayload.exp < currentTime;
     }
-
-    return true;
+    return false;
   } catch (error) {
-    // If not a valid JWT format, treat as mock token or valid if string exists in dev
-    console.warn('Non-JWT token or decode error, checking string existence:', error);
-    return Boolean(token && token.length > 5);
+    return false;
   }
 }
 
+export function isTokenValid(token) {
+  return Boolean(token) && !isTokenExpired(token);
+}
+
+/**
+ * User is authenticated if either Access Token is valid OR Refresh Token is valid
+ */
 export function isAuthenticated() {
   const token = getToken();
-  if (!token) return false;
+  const refreshToken = getRefreshToken();
 
-  const valid = isTokenValid(token);
-  if (!valid) {
-    clearAuth();
-    return false;
-  }
+  // If access token is valid, authenticated
+  if (isTokenValid(token)) return true;
 
-  return true;
+  // If access token expired but refresh token is valid, still authenticated (will auto-refresh)
+  if (isTokenValid(refreshToken)) return true;
+
+  // Both tokens missing or expired -> clear storage and return false
+  clearAuth();
+  return false;
 }
