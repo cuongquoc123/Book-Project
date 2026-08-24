@@ -7,5 +7,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.example.bookbe.entity.Book;
 
 public interface BookRepository extends JpaRepository<Book, Long> {
-    List<Book> findByCreatedByUserId(Long userId);
+    List<Book> findByCreatedById(Long userId);
 }
