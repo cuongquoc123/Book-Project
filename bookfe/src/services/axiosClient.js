@@ -20,20 +20,20 @@ function subscribeTokenRefresh(cb) {
 }
 
 function onRefreshed(token) {
-  refreshSubscribers.map((cb) => cb(token));
+  refreshSubscribers.forEach((cb) => cb(token));
   refreshSubscribers = [];
 }
 
 /**
- * Call raw Axios refresh endpoint to get new Access Token
+ * Perform raw Axios call to refresh Access Token
  */
 async function performRefreshToken() {
   const refreshToken = getRefreshToken();
   if (!refreshToken || isTokenExpired(refreshToken)) {
-    throw new Error('Refresh Token is missing or expired');
+    throw new Error('REFRESH_TOKEN_EXPIRED');
   }
 
-  // Use raw axios call to avoid interceptor recursion
+  // Use raw axios instance to prevent interceptor loops
   const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
     refreshToken,
   });
@@ -43,7 +43,7 @@ async function performRefreshToken() {
   const newRefreshToken = data.refreshToken || refreshToken;
 
   if (!newAccessToken) {
-    throw new Error('Failed to obtain new access token');
+    throw new Error('REFRESH_FAILED');
   }
 
   setAuthData({
@@ -54,24 +54,30 @@ async function performRefreshToken() {
   return newAccessToken;
 }
 
-// Request Interceptor: Proactive Token Expiration Check & Auto Refresh
+// Request Interceptor: Proactive Token Expiration Check
 axiosClient.interceptors.request.use(
   async (config) => {
-    // Skip token logic for login & register endpoints
-    if (config.url?.includes('/auth/login') || config.url?.includes('/auth/register')) {
+    // Exempt all auth endpoints (/auth/login, /auth/register, /auth/refresh, /auth/logout)
+    const isAuthEndpoint =
+      config.url?.includes('/auth/login') ||
+      config.url?.includes('/auth/register') ||
+      config.url?.includes('/auth/refresh') ||
+      config.url?.includes('/auth/logout');
+
+    if (isAuthEndpoint) {
       return config;
     }
 
     let token = getToken();
     const refreshToken = getRefreshToken();
 
-    // Check if Access Token is expired
+    // Check if Access Token is expired for non-auth requests
     if (token && isTokenExpired(token)) {
       // If Refresh Token is also expired or missing -> Clear auth and redirect
       if (!refreshToken || isTokenExpired(refreshToken)) {
         clearAuth();
         redirectToLogin();
-        return Promise.reject(new Error('Tokens expired. Redirecting to login.'));
+        return Promise.reject(new Error('SESSION_EXPIRED'));
       }
 
       // Proactively refresh token before sending request
@@ -107,7 +113,7 @@ axiosClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response Interceptor: Reactive 401 Catch & Token Refresh Retry
+// Response Interceptor: Handle 401 Unauthorized & Server Errors
 axiosClient.interceptors.response.use(
   (response) => {
     return response.data;
@@ -116,7 +122,18 @@ axiosClient.interceptors.response.use(
     const originalRequest = error.config;
     const status = error.response ? error.response.status : null;
 
-    // 401 Unauthorized: Try refreshing token if not already retried
+    const isAuthEndpoint =
+      originalRequest?.url?.includes('/auth/login') ||
+      originalRequest?.url?.includes('/auth/register') ||
+      originalRequest?.url?.includes('/auth/refresh') ||
+      originalRequest?.url?.includes('/auth/logout');
+
+    // 1. If it's an Auth Endpoint (e.g. wrong password on /auth/login), pass error directly to component
+    if (isAuthEndpoint) {
+      return Promise.reject(error);
+    }
+
+    // 2. Handle 401 Unauthorized for Protected Endpoints
     if (status === 401 && originalRequest && !originalRequest._retry) {
       originalRequest._retry = true;
       const refreshToken = getRefreshToken();
@@ -138,12 +155,12 @@ axiosClient.interceptors.response.use(
       }
     }
 
-    const isNetworkError = !error.response;
+    // 3. True Network Errors (Server down / CORS) or 5xx Server Errors
+    const isTrueNetworkError = error.code === 'ERR_NETWORK' || (axios.isAxiosError(error) && !error.response);
     const isServerError = status && status >= 500;
 
-    // 5xx Server Error or Network failure -> Redirect to Server Error Page
-    if (isNetworkError || isServerError) {
-      const errorMsg = isNetworkError
+    if (isTrueNetworkError || isServerError) {
+      const errorMsg = isTrueNetworkError
         ? 'Không thể kết nối đến máy chủ Backend.'
         : `Lỗi máy chủ (${status}): ${error.response?.data?.message || 'Internal Server Error'}`;
 

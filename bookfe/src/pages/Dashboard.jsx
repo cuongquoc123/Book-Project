@@ -1,15 +1,21 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, LogOut, User, Shield } from 'lucide-react';
+import { logoutUser } from '../services/api';
+import { clearAuth, getRefreshToken, getUser } from '../utils/auth';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = getUser() || {};
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+  const handleLogout = async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      await logoutUser(refreshToken);
+    } else {
+      clearAuth();
+    }
+    navigate('/login', { replace: true });
   };
 
   return (

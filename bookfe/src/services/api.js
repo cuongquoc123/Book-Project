@@ -3,18 +3,25 @@ import { setAuthData, clearAuth } from '../utils/auth';
 
 /**
  * Async Promise wrapper helper returning Go-style [err, data] tuple
- * Eliminates try-catch blocks in API service functions
+ * Dynamically extracts error message from Backend ErrorRespone DTO
  */
 export const to = (promise) =>
   promise
     .then((data) => [null, data])
-    .catch((err) => [
-      err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        'Đã có lỗi xảy ra. Vui lòng thử lại.',
-      null,
-    ]);
+    .catch((err) => {
+      const responseData = err?.response?.data;
+      let errorMessage = 'Đã có lỗi xảy ra. Vui lòng thử lại.';
+
+      if (typeof responseData === 'string') {
+        errorMessage = responseData;
+      } else if (responseData && typeof responseData === 'object') {
+        errorMessage = responseData.message || responseData.error || errorMessage;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
+
+      return [errorMessage, null];
+    });
 
 /**
  * Authentication API Service returning [err, data] tuples
