@@ -1,122 +1,77 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import ClientLogin from './pages/user/ClientLogin';
+import UserHome from './pages/user/UserHome';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/Dashboard';
+import BookManagement from './pages/admin/BookManagement';
+import CategoryManagement from './pages/admin/CategoryManagement';
+import EmployeeManagement from './pages/admin/EmployeeManagement';
+import HomeNavigation from './pages/HomeNavigation';
+import ServerError from './pages/ServerError';
+import ProtectedRoute from './components/ProtectedRoute';
+import './styles/auth.css';
 
-function App() {
-  const [count, setCount] = useState(0)
-
+export default function App() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <Router>
+      <Routes>
+        <Route path="/" element={<HomeNavigation />} />
+        <Route path="/login" element={<ClientLogin />} />
 
-      <div className="ticks"></div>
+        {/* Protected User Home Route */}
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']}>
+              <UserHome />
+            </ProtectedRoute>
+          }
+        />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {/* Admin Gateway Login Route */}
+        <Route path="/admin/login" element={<AdminLogin />} />
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {/* Protected Admin Portal Routes */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/books"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <BookManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/categories"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <CategoryManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Super Admin Only Route: Employee / User Management */}
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <EmployeeManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/server-error" element={<ServerError />} />
+      </Routes>
+    </Router>
+  );
 }
-
-export default App
