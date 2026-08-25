@@ -445,9 +445,8 @@ export default function BookManagement() {
                       </td>
                       <td>
                         <span
-                          className={`owner-pill ${
-                            book.createdByName === currentUser.username ? 'self' : 'other'
-                          }`}
+                          className={`owner-pill ${book.createdByName === currentUser.username ? 'self' : 'other'
+                            }`}
                         >
                           <User size={12} />
                           {book.createdByName || 'Hệ thống'}

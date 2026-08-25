@@ -147,3 +147,23 @@ export async function uploadImage(file) {
   );
 }
 
+export async function loginWithGoogle(idToken) {
+  const [err, data] = await to(axiosClient.post('/auth/google', { idToken }));
+
+  if (!err && data && (data.accessToken || data.token)) {
+    const accessToken = data.accessToken || data.token;
+    const refreshToken = data.refreshToken || '';
+    setAuthData({
+      accessToken,
+      refreshToken,
+      user: {
+        id: data.id,
+        username: data.username || data.fullname || data.email,
+        email: data.email,
+        fullName: data.fullname || data.fullName,
+        role: data.role || 'CLIENT',
+      },
+    });
+  }
+  return [err, data];
+}

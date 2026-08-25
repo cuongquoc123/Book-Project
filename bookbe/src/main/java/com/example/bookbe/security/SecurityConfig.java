@@ -63,8 +63,8 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // 1. Endpoints công khai (Đăng ký, Đăng nhập, Refresh Token, Đăng xuất, File uploads)
-                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/uploads/**", "/api/upload/**").permitAll()
+                // 1. Endpoints công khai (Đăng ký, Đăng nhập, Google OAuth, Refresh Token, Đăng xuất, File uploads)
+                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/refresh", "/api/auth/logout", "/uploads/**", "/api/upload/**").permitAll()
                 // 2. Yêu cầu đã đăng nhập cho thông tin cá nhân
                 .requestMatchers("/api/auth/me").authenticated()
 
