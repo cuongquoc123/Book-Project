@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ClientLogin from './pages/user/ClientLogin';
 import UserHome from './pages/user/UserHome';
+import UserProfile from './pages/user/UserProfile';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/Dashboard';
 import BookManagement from './pages/admin/BookManagement';
@@ -19,12 +20,21 @@ export default function App() {
         <Route path="/" element={<HomeNavigation />} />
         <Route path="/login" element={<ClientLogin />} />
 
-        {/* Protected User Home Route */}
+        {/* Protected User Home & Profile Routes */}
         <Route
           path="/home"
           element={
             <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']}>
               <UserHome />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']}>
+              <UserProfile />
             </ProtectedRoute>
           }
         />

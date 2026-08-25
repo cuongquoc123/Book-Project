@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.bookbe.dto.AuthRespone;
+import com.example.bookbe.dto.GoogleLoginRequest;
 import com.example.bookbe.dto.LoginRequest;
 import com.example.bookbe.dto.RefreshTokenRequest;
 import com.example.bookbe.dto.RegisterRequest;
@@ -21,15 +22,18 @@ import com.example.bookbe.dto.TokenRefreshRespone;
 import com.example.bookbe.entity.User;
 import com.example.bookbe.enums.Role;
 import com.example.bookbe.service.AuthService;
+import com.example.bookbe.service.GoogleAuthService;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-
+    
+    private final GoogleAuthService googleAuthService;
     private final AuthService authService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, GoogleAuthService googleAuthService) {
         this.authService = authService;
+        this.googleAuthService = googleAuthService;
     }
 
     private boolean isUserAuthenticated() {
@@ -38,6 +42,14 @@ public class AuthController {
             && authentication.isAuthenticated() 
             && !"anonymousUser".equals(authentication.getPrincipal());
     }
+
+    @PostMapping("/google")
+    public ResponseEntity<?> postMethodName(@RequestBody GoogleLoginRequest request) throws Exception {
+        AuthRespone respone = googleAuthService.authenticaGoogleUser(request.getIdToken());
+
+        return ResponseEntity.ok(respone);
+    }
+    
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, Object>> register(@RequestBody RegisterRequest request) {

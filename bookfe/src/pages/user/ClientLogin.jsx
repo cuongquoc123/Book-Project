@@ -216,11 +216,22 @@ export default function ClientLogin() {
               </button>
             </form>
 
-            {/* Reusable SocialAuthButtons Component */}
+            {/* Reusable SocialAuthButtons Component with real Google OAuth */}
             <SocialAuthButtons
-              onSocialClick={(provider) =>
-                setAlert({ type: 'success', message: `Đăng nhập bằng ${provider} (Demo mode)` })
-              }
+              onGoogleSuccess={(data) => {
+                const userRole = data?.role || 'CLIENT';
+                setAlert({ type: 'success', message: 'Đăng nhập thành công qua Google! Đang chuyển hướng...' });
+                setTimeout(() => {
+                  if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+                    navigate('/dashboard', { replace: true });
+                  } else {
+                    navigate('/home', { replace: true });
+                  }
+                }, 1000);
+              }}
+              onError={(errMessage) => {
+                setAlert({ type: 'error', message: errMessage || 'Đăng nhập Google thất bại.' });
+              }}
             />
 
             <div style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.85rem', color: '#888' }}>
