@@ -1,7 +1,9 @@
 package com.example.bookbe.service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -59,6 +61,29 @@ public class AuthService {
                 .email(request.getEmail())
                 .fullName(request.getFullname())
                 .role(Role.CLIENT)
+                .build();
+
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public User createAdminAccount(RegisterRequest request, Role role) {
+        if (userRepository.existsByUsername(request.getUsername())) {
+            throw new IllegalArgumentException("Username đã tồn tại!");
+        }
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email đã tồn tại!");
+        }
+
+        Role targetRole = (role != null) ? role : Role.ADMIN;
+
+        User user = User.builder()
+                .username(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .email(request.getEmail())
+                .fullName(request.getFullname())
+                .role(targetRole)
                 .build();
 
         return userRepository.save(user);
@@ -129,5 +154,18 @@ public class AuthService {
         userInfo.put("createdAt", user.getCreatedAt());
 
         return userInfo;
+    }
+
+    public List<Map<String, Object>> getAllUsers() {
+        return userRepository.findAll().stream().map(user -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", user.getId());
+            map.put("username", user.getUsername());
+            map.put("email", user.getEmail());
+            map.put("fullName", user.getFullName());
+            map.put("role", user.getRole().name());
+            map.put("createdAt", user.getCreatedAt());
+            return map;
+        }).collect(Collectors.toList());
     }
 }

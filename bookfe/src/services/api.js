@@ -52,6 +52,14 @@ export async function registerUser({ username, email, password }) {
   return to(axiosClient.post('/auth/register', { username, email, password }));
 }
 
+export async function createAdminUser({ username, email, password, fullname }) {
+  return to(axiosClient.post('/auth/create-admin', { username, email, password, fullname }));
+}
+
+export async function getAllUsers() {
+  return to(axiosClient.get('/auth/users'));
+}
+
 export async function logoutUser(refreshToken) {
   const [err, data] = await to(axiosClient.post('/auth/logout', { refreshToken }));
   clearAuth();
@@ -121,5 +129,21 @@ export async function updateBook(id, data) {
 
 export async function deleteBook(id) {
   return to(axiosClient.delete(`/books/${id}`));
+}
+
+/* ==========================================
+ * File Upload API Endpoints
+ * ========================================== */
+
+export async function uploadImage(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return to(
+    axiosClient.post('/upload/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  );
 }
 

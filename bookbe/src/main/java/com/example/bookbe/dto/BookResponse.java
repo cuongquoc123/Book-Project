@@ -17,6 +17,7 @@ public class BookResponse {
     private String title;
     private String author;
     private String description;
+    private String coverUrl;
     private BigDecimal price;
 
     private Long categoryId;
@@ -62,6 +63,14 @@ public class BookResponse {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getCoverUrl() {
+        return coverUrl;
+    }
+
+    public void setCoverUrl(String coverUrl) {
+        this.coverUrl = coverUrl;
     }
 
     public BigDecimal getPrice() {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, FolderTree, LogOut, User, Crown, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, BookOpen, FolderTree, Users, LogOut, User, Crown, ShieldCheck } from 'lucide-react';
 import { logoutUser } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
 
@@ -61,6 +61,17 @@ export default function AdminHeader({ currentUser }) {
             <FolderTree size={18} />
             <span>Quản Lý Loại Sách</span>
           </NavLink>
+
+          {/* Super Admin Only Route */}
+          {isSuperAdmin && (
+            <NavLink
+              to="/admin/users"
+              className={({ isActive }) => `dash-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Users size={18} />
+              <span>Quản Lý Nhân Viên</span>
+            </NavLink>
+          )}
         </nav>
 
         <div className="dash-user-section">

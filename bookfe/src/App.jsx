@@ -6,6 +6,7 @@ import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/Dashboard';
 import BookManagement from './pages/admin/BookManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
+import EmployeeManagement from './pages/admin/EmployeeManagement';
 import HomeNavigation from './pages/HomeNavigation';
 import ServerError from './pages/ServerError';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -55,6 +56,16 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
               <CategoryManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Super Admin Only Route: Employee / User Management */}
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+              <EmployeeManagement />
             </ProtectedRoute>
           }
         />

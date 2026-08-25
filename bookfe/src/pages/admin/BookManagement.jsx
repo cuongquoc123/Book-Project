@@ -11,6 +11,7 @@ import {
   X,
   AlertCircle,
   CheckCircle2,
+  UploadCloud,
 } from 'lucide-react';
 import {
   getCurrentUser,
@@ -19,6 +20,7 @@ import {
   createBook,
   updateBook,
   deleteBook,
+  uploadImage,
 } from '../../services/api';
 import { getUser } from '../../utils/auth';
 import AdminHeader from './AdminHeader';
@@ -48,6 +50,7 @@ export default function BookManagement() {
     title: '',
     author: '',
     description: '',
+    coverUrl: '',
     price: '',
     categoryId: '',
   });
@@ -56,6 +59,28 @@ export default function BookManagement() {
   const [deleteTarget, setDeleteTarget] = useState({ id: null, title: '' });
 
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+
+  const handleCoverFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setAlert({ type: 'error', message: 'Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!' });
+      return;
+    }
+
+    setUploadingCover(true);
+    const [err, data] = await uploadImage(file);
+    setUploadingCover(false);
+
+    if (err) {
+      setAlert({ type: 'error', message: `Lỗi upload ảnh bìa: ${err}` });
+    } else if (data?.fileUrl) {
+      setBookFormData((prev) => ({ ...prev, coverUrl: data.fileUrl }));
+      setAlert({ type: 'success', message: 'Tải ảnh bìa sách lên thành công!' });
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -133,6 +158,7 @@ export default function BookManagement() {
         title: book.title || '',
         author: book.author || '',
         description: book.description || '',
+        coverUrl: book.coverUrl || '',
         price: book.price !== null && book.price !== undefined ? book.price : '',
         categoryId: book.categoryId || (categories[0]?.id ? String(categories[0].id) : ''),
       });
@@ -142,6 +168,7 @@ export default function BookManagement() {
         title: '',
         author: '',
         description: '',
+        coverUrl: '',
         price: '',
         categoryId: categories[0]?.id ? String(categories[0].id) : '',
       });
@@ -165,6 +192,7 @@ export default function BookManagement() {
       title: bookFormData.title.trim(),
       author: bookFormData.author.trim(),
       description: bookFormData.description.trim(),
+      coverUrl: bookFormData.coverUrl.trim(),
       price: bookFormData.price !== '' ? Number(bookFormData.price) : 0,
       categoryId: Number(bookFormData.categoryId),
     };
@@ -322,6 +350,7 @@ export default function BookManagement() {
               <thead>
                 <tr>
                   <th>ID</th>
+                  <th>Bìa Sách</th>
                   <th>Tên Sách</th>
                   <th>Tác Giả</th>
                   <th>Thể Loại</th>
@@ -337,6 +366,44 @@ export default function BookManagement() {
                   return (
                     <tr key={book.id}>
                       <td style={{ fontWeight: 700, color: '#64748B' }}>#{book.id}</td>
+                      <td>
+                        {book.coverUrl ? (
+                          <img
+                            src={book.coverUrl}
+                            alt={book.title}
+                            style={{
+                              width: '42px',
+                              height: '56px',
+                              objectFit: 'cover',
+                              borderRadius: '6px',
+                              border: '1px solid #E2E8F0',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                            }}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: '42px',
+                              height: '56px',
+                              borderRadius: '6px',
+                              background: '#F1F5F9',
+                              border: '1px dashed #CBD5E1',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: '#94A3B8',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            No Cover
+                          </div>
+                        )}
+                      </td>
                       <td>
                         <div style={{ fontWeight: 700, color: '#0F172A' }}>{book.title}</div>
                         {book.description && (
@@ -563,6 +630,124 @@ export default function BookManagement() {
                       }}
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      marginBottom: '0.4rem',
+                      color: '#334155',
+                    }}
+                  >
+                    Ảnh Bìa Sách (Tải Tệp Hình Ảnh)
+                  </label>
+
+                  <div
+                    style={{
+                      border: '2px dashed #CBD5E1',
+                      borderRadius: '12px',
+                      padding: '1.25rem 1rem',
+                      textAlign: 'center',
+                      background: '#F8FAFC',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleCoverFileChange}
+                      style={{
+                        position: 'absolute',
+                        inset: 0,
+                        opacity: 0,
+                        cursor: 'pointer',
+                        width: '100%',
+                        height: '100%',
+                        zIndex: 2,
+                      }}
+                    />
+
+                    {uploadingCover ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', color: '#4F46E5' }}>
+                        <RefreshCw size={22} className="animate-spin" />
+                        <span style={{ fontSize: '0.9rem', fontWeight: 700 }}>Đang tải tệp ảnh lên server...</span>
+                      </div>
+                    ) : bookFormData.coverUrl ? (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1.25rem', zIndex: 3, position: 'relative' }}>
+                        <img
+                          src={bookFormData.coverUrl}
+                          alt="Cover preview"
+                          style={{
+                            width: '54px',
+                            height: '72px',
+                            objectFit: 'cover',
+                            borderRadius: '8px',
+                            border: '1px solid #CBD5E1',
+                            boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                          }}
+                        />
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <CheckCircle2 size={16} /> Ảnh bìa đã được tải lên
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBookFormData({ ...bookFormData, coverUrl: '' });
+                            }}
+                            style={{
+                              marginTop: '0.3rem',
+                              fontSize: '0.775rem',
+                              color: '#DC2626',
+                              background: '#FEF2F2',
+                              border: '1px solid #FCA5A5',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              padding: '0.2rem 0.5rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Xóa ảnh bìa
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#64748B' }}>
+                        <UploadCloud size={32} style={{ margin: '0 auto 0.4rem auto', color: '#4F46E5' }} />
+                        <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0F172A' }}>
+                          Bấm vào đây để chọn tệp hình ảnh bìa sách
+                        </div>
+                        <div style={{ fontSize: '0.775rem', color: '#94A3B8', marginTop: '0.2rem' }}>
+                          Hỗ trợ định dạng JPG, PNG, WEBP, GIF (Tự động lưu vào server Backend)
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <input
+                    type="text"
+                    placeholder="Hoặc nhập dán đường dẫn URL ảnh trực tiếp (nếu có)..."
+                    value={bookFormData.coverUrl}
+                    onChange={(e) =>
+                      setBookFormData({ ...bookFormData, coverUrl: e.target.value })
+                    }
+                    style={{
+                      width: '100%',
+                      marginTop: '0.5rem',
+                      padding: '0.45rem 0.75rem',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '8px',
+                      outline: 'none',
+                      fontSize: '0.8rem',
+                      color: '#475569',
+                    }}
+                  />
                 </div>
 
                 <div>

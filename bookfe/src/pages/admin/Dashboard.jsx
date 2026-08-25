@@ -212,6 +212,29 @@ export default function Dashboard() {
               <ArrowRight size={18} />
             </Link>
           </div>
+
+          {/* Card 3: Employee Management (Super Admin Only) */}
+          {isSuperAdmin && (
+            <div className="feature-card">
+              <div>
+                <div className="feature-icon-box" style={{ background: '#F5F3FF', color: '#7C3AED' }}>
+                  <Sparkles size={30} />
+                </div>
+                <h3 className="feature-card-title">Quản Lý Nhân Viên</h3>
+                <p className="feature-card-desc">
+                  Quyền hạn dành riêng cho Super Admin: Khởi tạo tài khoản Quản trị viên (Admin) mới và giám sát danh sách nhân viên.
+                </p>
+              </div>
+              <Link
+                to="/admin/users"
+                className="feature-card-btn"
+                style={{ background: '#7C3AED', color: 'white' }}
+              >
+                <span>Truy Cập Quản Lý Nhân Viên</span>
+                <ArrowRight size={18} />
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Quick Recent Activity / Data Summary */}

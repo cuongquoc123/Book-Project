@@ -50,6 +50,7 @@ public class BookService {
                 .title(request.getTitle().trim())
                 .author(request.getAuthor())
                 .description(request.getDescription())
+                .coverUrl(request.getCoverUrl())
                 .price(request.getPrice())
                 .category(category)
                 .createdBy(currentUser)
@@ -91,6 +92,9 @@ public class BookService {
         }
         if (request.getDescription() != null) {
             book.setDescription(request.getDescription());
+        }
+        if (request.getCoverUrl() != null) {
+            book.setCoverUrl(request.getCoverUrl());
         }
         if (request.getPrice() != null) {
             book.setPrice(request.getPrice());
@@ -151,6 +155,7 @@ public class BookService {
                 .title(book.getTitle())
                 .author(book.getAuthor())
                 .description(book.getDescription())
+                .coverUrl(book.getCoverUrl())
                 .price(book.getPrice())
                 .categoryId(book.getCategory() != null ? book.getCategory().getId() : null)
                 .categoryName(book.getCategory() != null ? book.getCategory().getName() : null)
