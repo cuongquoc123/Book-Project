@@ -2,43 +2,73 @@ package com.example.bookbe.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.example.bookbe.dto.ErrorRespone;
+import com.example.bookbe.exception.RefreshTokenException;
+import com.example.bookbe.exception.ResourceNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(RefreshTokenException.class)
-    public ResponseEntity<ErrorRespone> handlerRefreshTokenException(RefreshTokenException ex){
-        ErrorRespone respone = new ErrorRespone(HttpStatus.FORBIDDEN.value(), ex.getMessage());
-
-        return new ResponseEntity<>(respone,HttpStatus.FORBIDDEN);
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorRespone> handleAccessDeniedException(AccessDeniedException ex) {
+        ErrorRespone response = new ErrorRespone(
+            HttpStatus.FORBIDDEN.value(),
+            ex.getMessage() != null ? ex.getMessage() : "Bạn không có quyền thực hiện thao tác này!"
+        );
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
     }
 
-    @ExceptionHandler(ResourceNotFoundException.class) 
-    public ResponseEntity<ErrorRespone> handlerResourceNotFoundException(ResourceNotFoundException ex) {
-        ErrorRespone respone = new ErrorRespone(HttpStatus.NOT_FOUND.value(), ex.getMessage());
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ErrorRespone> handleBadCredentialsException(BadCredentialsException ex) {
+        ErrorRespone response = new ErrorRespone(
+            HttpStatus.UNAUTHORIZED.value(),
+            "Tên đăng nhập hoặc mật khẩu không chính xác."
+        );
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
 
-        return new ResponseEntity<>(respone,HttpStatus.NOT_FOUND);
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ErrorRespone> handleAuthenticationException(AuthenticationException ex) {
+        ErrorRespone response = new ErrorRespone(
+            HttpStatus.UNAUTHORIZED.value(),
+            ex.getMessage() != null ? ex.getMessage() : "Xác thực không thành công."
+        );
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(RefreshTokenException.class)
+    public ResponseEntity<ErrorRespone> handlerRefreshTokenException(RefreshTokenException ex) {
+        ErrorRespone response = new ErrorRespone(HttpStatus.FORBIDDEN.value(), ex.getMessage());
+        return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ErrorRespone> handlerResourceNotFoundException(ResourceNotFoundException ex) {
+        ErrorRespone response = new ErrorRespone(HttpStatus.NOT_FOUND.value(), ex.getMessage());
+        return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorRespone> handlerIllegalArgumentException(IllegalArgumentException ex) {
-        ErrorRespone respone = new ErrorRespone(HttpStatus.BAD_REQUEST.value(), ex.getMessage());
-
-        return new ResponseEntity<>(respone,HttpStatus.BAD_REQUEST);
+        ErrorRespone response = new ErrorRespone(HttpStatus.BAD_REQUEST.value(), ex.getMessage());
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorRespone> HandlerGlobalException(Exception ex) {
-        ErrorRespone respone = new ErrorRespone(
-            HttpStatus.INTERNAL_SERVER_ERROR.value(), 
-            "Đã có lỗi xảy ra ở server thử lại sau"
+        String message = (ex.getMessage() != null && !ex.getMessage().isBlank()) 
+            ? ex.getMessage() 
+            : "Đã có lỗi xảy ra ở server. Vui lòng thử lại sau.";
+        ErrorRespone response = new ErrorRespone(
+            HttpStatus.INTERNAL_SERVER_ERROR.value(),
+            message
         );
-        return new ResponseEntity<>(respone,HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
-
-
 }

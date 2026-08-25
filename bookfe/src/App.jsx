@@ -1,10 +1,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ClientLogin from './pages/user/ClientLogin';
+import UserHome from './pages/user/UserHome';
 import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/Dashboard';
+import BookManagement from './pages/admin/BookManagement';
+import CategoryManagement from './pages/admin/CategoryManagement';
 import HomeNavigation from './pages/HomeNavigation';
 import ServerError from './pages/ServerError';
-import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/auth.css';
 
@@ -14,14 +17,44 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomeNavigation />} />
         <Route path="/login" element={<ClientLogin />} />
+
+        {/* Protected User Home Route */}
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']}>
+              <UserHome />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Gateway Login Route */}
         <Route path="/admin/login" element={<AdminLogin />} />
-        
-        {/* Protected Routes: Requires valid unexpired Token */}
+
+        {/* Protected Admin Portal Routes */}
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
-              <Dashboard />
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/books"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <BookManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/categories"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+              <CategoryManagement />
             </ProtectedRoute>
           }
         />

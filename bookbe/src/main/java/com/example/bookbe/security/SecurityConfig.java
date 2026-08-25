@@ -63,18 +63,18 @@ public class SecurityConfig {
             .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                // 1. Endpoints công khai (Đăng ký & Đăng nhập)
-                .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
-                // 2. Yêu cầu đã đăng nhập cho các thao tác Auth khác
-                .requestMatchers("/api/auth/refresh", "/api/auth/logout", "/api/auth/me").authenticated()
-                
-                // 3. Super Admin: Toàn quyền với các API quản trị cao cấp
+                // 1. Endpoints công khai (Đăng ký, Đăng nhập, Refresh Token, Đăng xuất)
+                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                // 2. Yêu cầu đã đăng nhập cho thông tin cá nhân
+                .requestMatchers("/api/auth/me").authenticated()
+
+                // 3. Categories & Books endpoints
+                .requestMatchers("/api/categories/**", "/api/books/**").authenticated()
+
+                // 4. Super Admin & Admin endpoints
                 .requestMatchers("/api/super-admin/**").hasRole(Role.SUPER_ADMIN.name())
-                // 4. Admin & Super Admin: Các API quản lý tài nguyên (Sách, Category...)
                 .requestMatchers("/api/admin/**").hasAnyRole(Role.ADMIN.name(), Role.SUPER_ADMIN.name())
-                // 5. Client / User: Các API cá nhân và đơn mua
                 .requestMatchers("/api/users/**", "/api/purchases/**").hasAnyRole(Role.CLIENT.name(), Role.ADMIN.name(), Role.SUPER_ADMIN.name())
-                // Tất cả các request còn lại phải đăng nhập
                 .anyRequest().authenticated()
             );
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

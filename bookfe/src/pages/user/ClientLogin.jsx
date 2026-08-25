@@ -6,7 +6,7 @@ import FormInput from '../../components/FormInput';
 import AlertToast from '../../components/AlertToast';
 import SocialAuthButtons from '../../components/SocialAuthButtons';
 import BrandSection from '../../components/BrandSection';
-import { isAuthenticated } from '../../utils/auth';
+import { isAuthenticated, getUser } from '../../utils/auth';
 
 export default function ClientLogin() {
   const navigate = useNavigate();
@@ -23,10 +23,15 @@ export default function ClientLogin() {
   // Alert state
   const [alert, setAlert] = useState({ type: '', message: '' });
 
-  // Auto redirect to /dashboard if valid token exists
+  // Auto redirect if valid token exists
   useEffect(() => {
     if (isAuthenticated()) {
-      navigate('/dashboard', { replace: true });
+      const user = getUser();
+      if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/home', { replace: true });
+      }
     }
   }, [navigate]);
 
@@ -51,7 +56,7 @@ export default function ClientLogin() {
     setLoading(true);
 
     if (activeTab === 'login') {
-      const [err] = await loginUser({
+      const [err, data] = await loginUser({
         username,
         password,
         roleHint: 'CLIENT',
@@ -60,9 +65,14 @@ export default function ClientLogin() {
       if (err) {
         setAlert({ type: 'error', message: err });
       } else {
-        setAlert({ type: 'success', message: 'Đăng nhập thành công! Đang chuyển hướng đến Dashboard...' });
+        const userRole = data?.role || 'CLIENT';
+        setAlert({ type: 'success', message: 'Đăng nhập thành công! Đang chuyển hướng...' });
         setTimeout(() => {
-          navigate('/dashboard', { replace: true });
+          if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+            navigate('/dashboard', { replace: true });
+          } else {
+            navigate('/home', { replace: true });
+          }
         }, 1000);
       }
     } else {

@@ -132,14 +132,11 @@ public class Book {
         return updatedAt;
     }
 
-    /**
-     * Checks if a given user can modify or delete this book.
-     * SUPER_ADMIN has full access.
-     * ADMIN can only modify books they created.
-     */
     public boolean canManage(User user) {
-        if (user == null) return false;
-        if (user.isSuperAdmin()) return true;
+        if (user == null)
+            return false;
+        if (user.isSuperAdmin())
+            return true;
         if (user.isAdmin() && this.createdBy != null) {
             return this.createdBy.getId().equals(user.getId());
         }

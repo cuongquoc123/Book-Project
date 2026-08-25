@@ -56,21 +56,19 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
-        if (!isUserAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Yêu cầu đăng nhập để thực hiện làm mới token!"));
-        }
         TokenRefreshRespone response = authService.refreshToken(request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestBody RefreshTokenRequest request) {
-        if (!isUserAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "Yêu cầu đăng nhập để thực hiện đăng xuất!"));
+    public ResponseEntity<?> logout(@RequestBody(required = false) RefreshTokenRequest request) {
+        if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
+            try {
+                authService.logout(request.getRefreshToken());
+            } catch (Exception e) {
+                // Ignore token delete error if already invalidated
+            }
         }
-        authService.logout(request.getRefreshToken());
         return ResponseEntity.ok(Map.of("message", "Đăng xuất thành công!"));
     }
 

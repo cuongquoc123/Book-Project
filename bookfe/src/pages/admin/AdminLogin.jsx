@@ -4,7 +4,7 @@ import { ShieldCheck, Lock, Eye, EyeOff, User, ArrowRight, Server, Shield, Datab
 import { loginUser } from '../../services/api';
 import FormInput from '../../components/FormInput';
 import AlertToast from '../../components/AlertToast';
-import { isAuthenticated } from '../../utils/auth';
+import { isAuthenticated, getUser, clearAuth } from '../../utils/auth';
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -19,10 +19,13 @@ export default function AdminLogin() {
   // Alert message
   const [alert, setAlert] = useState({ type: '', message: '' });
 
-  // Auto redirect to /dashboard if valid token exists
+  // Auto redirect to /dashboard if valid admin token exists
   useEffect(() => {
     if (isAuthenticated()) {
-      navigate('/dashboard', { replace: true });
+      const user = getUser();
+      if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
+        navigate('/dashboard', { replace: true });
+      }
     }
   }, [navigate]);
 
@@ -40,7 +43,7 @@ export default function AdminLogin() {
 
     setLoading(true);
 
-    const [err] = await loginUser({
+    const [err, data] = await loginUser({
       username,
       password,
     });
@@ -48,9 +51,20 @@ export default function AdminLogin() {
     if (err) {
       setAlert({ type: 'error', message: err });
     } else {
+      const userRole = data?.role;
+      if (userRole === 'CLIENT') {
+        clearAuth();
+        setAlert({
+          type: 'error',
+          message: 'Tài khoản của bạn là độc giả (CLIENT). Cổng này chỉ dành cho Admin và Super Admin.',
+        });
+        setLoading(false);
+        return;
+      }
+
       setAlert({
         type: 'success',
-        message: 'Xác thực thành công! Đang chuyển hướng đến Dashboard...',
+        message: `Xác thực thành công quyền ${userRole}! Đang chuyển hướng...`,
       });
       setTimeout(() => {
         navigate('/dashboard', { replace: true });

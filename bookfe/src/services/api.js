@@ -35,7 +35,13 @@ export async function loginUser({ username, password, roleHint = 'CLIENT' }) {
     setAuthData({
       accessToken,
       refreshToken,
-      user: { username, role: data.role || roleHint },
+      user: {
+        id: data.id,
+        username: data.username || username,
+        email: data.email,
+        fullName: data.fullname || data.fullName,
+        role: data.role || roleHint,
+      },
     });
   }
 
@@ -53,5 +59,67 @@ export async function logoutUser(refreshToken) {
 }
 
 export async function getCurrentUser() {
-  return to(axiosClient.get('/auth/me'));
+  const [err, data] = await to(axiosClient.get('/auth/me'));
+  if (!err && data) {
+    const currentUserInfo = {
+      id: data.id,
+      username: data.username,
+      email: data.email,
+      fullName: data.fullName || data.fullname,
+      role: data.role,
+    };
+    const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refreshToken');
+    setAuthData({ accessToken: token, refreshToken, user: currentUserInfo });
+  }
+  return [err, data];
 }
+
+/* ==========================================
+ * Category API Endpoints
+ * ========================================== */
+
+export async function getAllCategories() {
+  return to(axiosClient.get('/categories'));
+}
+
+export async function getCategoryById(id) {
+  return to(axiosClient.get(`/categories/${id}`));
+}
+
+export async function createCategory(data) {
+  return to(axiosClient.post('/categories', data));
+}
+
+export async function updateCategory(id, data) {
+  return to(axiosClient.put(`/categories/${id}`, data));
+}
+
+export async function deleteCategory(id) {
+  return to(axiosClient.delete(`/categories/${id}`));
+}
+
+/* ==========================================
+ * Book API Endpoints
+ * ========================================== */
+
+export async function getAllBooks() {
+  return to(axiosClient.get('/books'));
+}
+
+export async function getBookById(id) {
+  return to(axiosClient.get(`/books/${id}`));
+}
+
+export async function createBook(data) {
+  return to(axiosClient.post('/books', data));
+}
+
+export async function updateBook(id, data) {
+  return to(axiosClient.put(`/books/${id}`, data));
+}
+
+export async function deleteBook(id) {
+  return to(axiosClient.delete(`/books/${id}`));
+}
+
