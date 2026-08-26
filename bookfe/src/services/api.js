@@ -87,8 +87,9 @@ export async function getCurrentUser() {
  * Category API Endpoints
  * ========================================== */
 
-export async function getAllCategories() {
-  return to(axiosClient.get('/categories'));
+export async function getAllCategories(params = {}) {
+  const { page = 0, size = 100, sortBy = 'id', sortDir = 'desc' } = params;
+  return to(axiosClient.get('/categories', { params: { page, size, sortBy, sortDir } }));
 }
 
 export async function getCategoryById(id) {
@@ -111,8 +112,9 @@ export async function deleteCategory(id) {
  * Book API Endpoints
  * ========================================== */
 
-export async function getAllBooks() {
-  return to(axiosClient.get('/books'));
+export async function getAllBooks(params = {}) {
+  const { page = 0, size = 5, sortBy = 'id', sortDir = 'desc' } = params;
+  return to(axiosClient.get('/books', { params: { page, size, sortBy, sortDir } }));
 }
 
 export async function getBookById(id) {
@@ -145,6 +147,11 @@ export async function uploadImage(file) {
       },
     })
   );
+}
+
+export async function deleteUploadedImage(fileUrl) {
+  if (!fileUrl) return [null, null];
+  return to(axiosClient.delete('/upload/image', { params: { fileUrl } }));
 }
 
 export async function loginWithGoogle(idToken) {

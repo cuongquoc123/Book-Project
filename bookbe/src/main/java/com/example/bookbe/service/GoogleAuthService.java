@@ -30,9 +30,9 @@ public class GoogleAuthService {
     private final PasswordEncoder passwordEncoder;
 
     public GoogleAuthService(UserRepository userRepository,
-                             JwtTokenProvider jwtTokenProvider,
-                             RefreshTokenService refreshTokenService,
-                             PasswordEncoder passwordEncoder) {
+            JwtTokenProvider jwtTokenProvider,
+            RefreshTokenService refreshTokenService,
+            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenService = refreshTokenService;

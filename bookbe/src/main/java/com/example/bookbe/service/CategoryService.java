@@ -3,6 +3,8 @@ package com.example.bookbe.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,10 +46,9 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryResponse> getAllCategories() {
-        return categoryRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public Page<CategoryResponse> getAllCategories(Pageable pageable) {
+        return categoryRepository.findAll(pageable)
+                .map(cate -> mapToResponse(cate));
     }
 
     @Transactional(readOnly = true)
@@ -64,7 +65,8 @@ public class CategoryService {
 
         // Permission check: Super Admin OR Owner Admin
         if (!category.canManage(currentUser)) {
-            throw new AccessDeniedException("Bạn không có quyền chỉnh sửa loại sách này! Chỉ người tạo ra loại sách hoặc Super Admin mới có quyền.");
+            throw new AccessDeniedException(
+                    "Bạn không có quyền chỉnh sửa loại sách này! Chỉ người tạo ra loại sách hoặc Super Admin mới có quyền.");
         }
 
         if (request.getName() != null && !request.getName().trim().isEmpty()) {
@@ -90,14 +92,16 @@ public class CategoryService {
 
         // Permission check: Super Admin OR Owner Admin
         if (!category.canManage(currentUser)) {
-            throw new AccessDeniedException("Bạn không có quyền xóa loại sách này! Chỉ người tạo ra loại sách hoặc Super Admin mới có quyền.");
+            throw new AccessDeniedException(
+                    "Bạn không có quyền xóa loại sách này! Chỉ người tạo ra loại sách hoặc Super Admin mới có quyền.");
         }
 
         categoryRepository.delete(category);
     }
 
     public CategoryResponse mapToResponse(Category category) {
-        if (category == null) return null;
+        if (category == null)
+            return null;
         return CategoryResponse.builder()
                 .id(category.getId())
                 .name(category.getName())

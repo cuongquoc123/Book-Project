@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [currentUser, setCurrentUser] = useState(() => getUser() || {});
   const [categories, setCategories] = useState([]);
   const [books, setBooks] = useState([]);
+  const [totalBooks, setTotalBooks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ type: '', message: '' });
 
@@ -40,18 +41,21 @@ export default function Dashboard() {
       });
     }
 
-    const [catErr, catRes] = await getAllCategories();
+    const [catErr, catRes] = await getAllCategories({ page: 0, size: 100 });
     if (catErr) {
       setAlert({ type: 'error', message: `Lỗi tải danh mục: ${catErr}` });
-    } else if (Array.isArray(catRes)) {
-      setCategories(catRes);
+    } else if (catRes) {
+      const catList = Array.isArray(catRes) ? catRes : (catRes.content || []);
+      setCategories(catList);
     }
 
-    const [bookErr, bookRes] = await getAllBooks();
+    const [bookErr, bookRes] = await getAllBooks({ page: 0, size: 50 });
     if (bookErr) {
       setAlert({ type: 'error', message: `Lỗi tải sách: ${bookErr}` });
-    } else if (Array.isArray(bookRes)) {
-      setBooks(bookRes);
+    } else if (bookRes) {
+      const list = Array.isArray(bookRes) ? bookRes : (bookRes.content || []);
+      setBooks(list);
+      setTotalBooks(bookRes.totalElements !== undefined ? bookRes.totalElements : list.length);
     }
 
     setLoading(false);
@@ -123,7 +127,7 @@ export default function Dashboard() {
               <BookOpen size={26} />
             </div>
             <div>
-              <div className="metric-val">{books.length}</div>
+              <div className="metric-val">{totalBooks}</div>
               <div className="metric-lbl">Tổng số Sách (Xem chi tiết →)</div>
             </div>
           </Link>
