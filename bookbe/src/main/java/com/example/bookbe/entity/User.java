@@ -2,15 +2,14 @@ package com.example.bookbe.entity;
 
 import java.time.LocalDateTime;
 
-import com.example.bookbe.enums.Role;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -43,10 +42,9 @@ public class User {
     @Column(name = "full_name")
     private String fullName;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    @Builder.Default
-    private Role role = Role.CLIENT;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "role_id")
+    private RoleEntity role;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -106,11 +104,11 @@ public class User {
         this.fullName = fullName;
     }
 
-    public Role getRole() {
+    public RoleEntity getRole() {
         return role;
     }
 
-    public void setRole(Role role) {
+    public void setRole(RoleEntity role) {
         this.role = role;
     }
 
@@ -124,15 +122,15 @@ public class User {
 
     // Helper methods for role verification
     public boolean isSuperAdmin() {
-        return this.role == Role.SUPER_ADMIN;
+        return this.role != null && "SUPER_ADMIN".equalsIgnoreCase(this.role.getName());
     }
 
     public boolean isAdmin() {
-        return this.role == Role.ADMIN;
+        return this.role != null && ("ADMIN".equalsIgnoreCase(this.role.getName()) || isSuperAdmin());
     }
 
     public boolean isClient() {
-        return this.role == Role.CLIENT;
+        return this.role != null && "CLIENT".equalsIgnoreCase(this.role.getName());
     }
 
     /**
@@ -143,3 +141,4 @@ public class User {
         return requester != null && requester.isSuperAdmin();
     }
 }
+

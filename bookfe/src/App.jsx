@@ -8,6 +8,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import BookManagement from './pages/admin/BookManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
+import RoleManagement from './pages/admin/RoleManagement';
 import HomeNavigation from './pages/HomeNavigation';
 import ServerError from './pages/ServerError';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -55,7 +56,7 @@ export default function App() {
         <Route
           path="/admin/books"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} requiredPermPrefix="BOOK_">
               <BookManagement />
             </ProtectedRoute>
           }
@@ -64,8 +65,17 @@ export default function App() {
         <Route
           path="/admin/categories"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} requiredPermPrefix="CATEGORY_">
               <CategoryManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/roles"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} requiredPermPrefix="ROLE_">
+              <RoleManagement />
             </ProtectedRoute>
           }
         />
@@ -74,7 +84,7 @@ export default function App() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute allowedRoles={['SUPER_ADMIN']}>
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requireSuperAdmin={true} requiredPermPrefix="USER_">
               <EmployeeManagement />
             </ProtectedRoute>
           }

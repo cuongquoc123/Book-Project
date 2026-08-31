@@ -28,7 +28,7 @@ import {
   uploadImage,
   deleteUploadedImage,
 } from '../../services/api';
-import { getUser } from '../../utils/auth';
+import { getUser, setAuthData } from '../../utils/auth';
 import AdminHeader from './AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/dashboard.css';
@@ -109,13 +109,19 @@ export default function BookManagement() {
 
     const [userErr, userData] = await getCurrentUser();
     if (!userErr && userData) {
-      setCurrentUser({
+      const updatedUser = {
         id: userData.id,
         username: userData.username,
         email: userData.email,
         fullName: userData.fullName || userData.fullname,
         role: userData.role,
-      });
+        roleDisplayName: userData.roleDisplayName,
+        permissions: userData.permissions || (userData.roleDetails?.permissions ? userData.roleDetails.permissions.map(p => p.name) : []),
+        canAccessAdmin: userData.canAccessAdmin,
+        canAccessUser: userData.canAccessUser,
+      };
+      setCurrentUser(updatedUser);
+      setAuthData({ user: updatedUser });
     }
 
     const [catErr, catRes] = await getAllCategories({ page: 0, size: 100 });
@@ -184,19 +190,10 @@ export default function BookManagement() {
 
   const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
 
-  // Helper: Check ownership & management permissions according to BE rules
+  // Helper: Check management permissions according to BE rules
   const canManage = (item) => {
     if (!item) return false;
-    if (isSuperAdmin) return true;
-    if (currentUser.role === 'ADMIN') {
-      if (item.createdByUserId && currentUser.id) {
-        return item.createdByUserId === currentUser.id;
-      }
-      if (item.createdByName && currentUser.username) {
-        return item.createdByName === currentUser.username;
-      }
-    }
-    return false;
+    return isSuperAdmin || currentUser.role === 'ADMIN' || Boolean(currentUser.role);
   };
 
   // Filtered Book List
@@ -526,8 +523,9 @@ export default function BookManagement() {
                     <th>Tác Giả</th>
                     <th>Thể Loại</th>
                     <th>Giá Bán</th>
-                    <th>Người Tạo (Created By)</th>
-                    <th>Quyền Hạn Thao Tác</th>
+                    <th>Người Tạo</th>
+                    <th>Người Sửa Gần Nhất</th>
+                    <th>Quyền Hạn</th>
                     <th style={{ textAlign: 'right' }}>Thao Tác</th>
                   </tr>
                 </thead>
@@ -582,7 +580,7 @@ export default function BookManagement() {
                               style={{
                                 fontSize: '0.8rem',
                                 color: '#64748B',
-                                maxWidth: '300px',
+                                maxWidth: '280px',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap',
@@ -622,6 +620,18 @@ export default function BookManagement() {
                             <User size={12} />
                             {book.createdByName || 'Hệ thống'}
                           </span>
+                        </td>
+                        <td>
+                          {book.updatedByName ? (
+                            <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 600 }}>
+                              <span style={{ color: '#4F46E5' }}>{book.updatedByName}</span>
+                              <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
+                                {new Date(book.updatedAt).toLocaleDateString('vi-VN')} {new Date(book.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}>Chưa sửa</span>
+                          )}
                         </td>
                         <td>
                           {manageable ? (

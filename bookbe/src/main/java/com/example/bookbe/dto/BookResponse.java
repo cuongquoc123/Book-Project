@@ -26,6 +26,9 @@ public class BookResponse {
     private Long createdByUserId;
     private String createdByName;
 
+    private Long updatedByUserId;
+    private String updatedByName;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -111,6 +114,22 @@ public class BookResponse {
 
     public void setCreatedByName(String createdByName) {
         this.createdByName = createdByName;
+    }
+
+    public Long getUpdatedByUserId() {
+        return updatedByUserId;
+    }
+
+    public void setUpdatedByUserId(Long updatedByUserId) {
+        this.updatedByUserId = updatedByUserId;
+    }
+
+    public String getUpdatedByName() {
+        return updatedByName;
+    }
+
+    public void setUpdatedByName(String updatedByName) {
+        this.updatedByName = updatedByName;
     }
 
     public LocalDateTime getCreatedAt() {

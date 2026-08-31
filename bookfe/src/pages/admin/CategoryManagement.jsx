@@ -24,7 +24,7 @@ import {
   updateCategory,
   deleteCategory,
 } from '../../services/api';
-import { getUser } from '../../utils/auth';
+import { getUser, setAuthData } from '../../utils/auth';
 import AdminHeader from './AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/dashboard.css';
@@ -66,13 +66,19 @@ export default function CategoryManagement() {
 
     const [userErr, userData] = await getCurrentUser();
     if (!userErr && userData) {
-      setCurrentUser({
+      const updatedUser = {
         id: userData.id,
         username: userData.username,
         email: userData.email,
         fullName: userData.fullName || userData.fullname,
         role: userData.role,
-      });
+        roleDisplayName: userData.roleDisplayName,
+        permissions: userData.permissions || (userData.roleDetails?.permissions ? userData.roleDetails.permissions.map(p => p.name) : []),
+        canAccessAdmin: userData.canAccessAdmin,
+        canAccessUser: userData.canAccessUser,
+      };
+      setCurrentUser(updatedUser);
+      setAuthData({ user: updatedUser });
     }
 
     const [catErr, catRes] = await getAllCategories({
@@ -133,19 +139,10 @@ export default function CategoryManagement() {
 
   const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
 
-  // Helper: Check ownership & management permissions according to BE rules
+  // Helper: Check management permissions according to BE rules
   const canManage = (item) => {
     if (!item) return false;
-    if (isSuperAdmin) return true;
-    if (currentUser.role === 'ADMIN') {
-      if (item.createdByUserId && currentUser.id) {
-        return item.createdByUserId === currentUser.id;
-      }
-      if (item.createdByName && currentUser.username) {
-        return item.createdByName === currentUser.username;
-      }
-    }
-    return false;
+    return isSuperAdmin || currentUser.role === 'ADMIN' || Boolean(currentUser.role);
   };
 
   // Filtered Category List
@@ -381,8 +378,9 @@ export default function CategoryManagement() {
                     <th>ID</th>
                     <th>Tên Loại Sách</th>
                     <th>Mô Tả</th>
-                    <th>Người Tạo (Created By)</th>
-                    <th>Quyền Hạn Thao Tác</th>
+                    <th>Người Tạo</th>
+                    <th>Người Sửa Gần Nhất</th>
+                    <th>Quyền Hạn</th>
                     <th style={{ textAlign: 'right' }}>Thao Tác</th>
                   </tr>
                 </thead>
@@ -393,7 +391,7 @@ export default function CategoryManagement() {
                       <tr key={cat.id}>
                         <td style={{ fontWeight: 700, color: '#64748B' }}>#{cat.id}</td>
                         <td style={{ fontWeight: 700, color: '#0F172A' }}>{cat.name}</td>
-                        <td style={{ color: '#64748B', maxWidth: '360px' }}>
+                        <td style={{ color: '#64748B', maxWidth: '320px' }}>
                           {cat.description || 'Chưa có mô tả'}
                         </td>
                         <td>
@@ -405,6 +403,18 @@ export default function CategoryManagement() {
                             <User size={12} />
                             {cat.createdByName || 'Hệ thống'}
                           </span>
+                        </td>
+                        <td>
+                          {cat.updatedByName ? (
+                            <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 600 }}>
+                              <span style={{ color: '#4F46E5' }}>{cat.updatedByName}</span>
+                              <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
+                                {new Date(cat.updatedAt).toLocaleDateString('vi-VN')} {new Date(cat.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}>Chưa sửa</span>
+                          )}
                         </td>
                         <td>
                           {manageable ? (

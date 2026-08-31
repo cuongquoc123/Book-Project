@@ -51,20 +51,20 @@ export default function AdminLogin() {
     if (err) {
       setAlert({ type: 'error', message: err });
     } else {
-      const userRole = data?.role;
-      if (userRole === 'CLIENT') {
+      if (data?.canAccessAdmin === false) {
         clearAuth();
         setAlert({
           type: 'error',
-          message: 'Tài khoản của bạn là độc giả (CLIENT). Cổng này chỉ dành cho Admin và Super Admin.',
+          message: `Tài khoản của bạn (Role: ${data?.roleDisplayName || data?.role}) không được phép truy cập Cổng Quản Trị (Admin Portal)!`,
         });
         setLoading(false);
         return;
       }
 
+      const displayRole = data?.roleDisplayName || data?.role;
       setAlert({
         type: 'success',
-        message: `Xác thực thành công quyền ${userRole}! Đang chuyển hướng...`,
+        message: `Xác thực thành công quyền ${displayRole}! Đang chuyển hướng...`,
       });
       setTimeout(() => {
         navigate('/dashboard', { replace: true });

@@ -78,10 +78,9 @@ public class BookService {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sách với ID: " + id));
 
-        // Permission check: Super Admin OR Creator Admin
+        // Permission check: Admin / Super Admin / Permission holder
         if (!book.canManage(currentUser)) {
-            throw new AccessDeniedException(
-                    "Bạn không có quyền chỉnh sửa sách này! Chỉ người tạo ra sách hoặc Super Admin mới có quyền.");
+            throw new AccessDeniedException("Bạn không có quyền chỉnh sửa sách này!");
         }
 
         if (request.getTitle() != null && !request.getTitle().trim().isEmpty()) {
@@ -106,6 +105,8 @@ public class BookService {
             book.setCategory(category);
         }
 
+        book.setUpdatedBy(currentUser);
+
         Book updatedBook = bookRepository.save(book);
         return mapToResponse(updatedBook, currentUser);
     }
@@ -115,10 +116,9 @@ public class BookService {
         Book book = bookRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sách với ID: " + id));
 
-        // Permission check: Super Admin OR Creator Admin
+        // Permission check: Admin / Super Admin / Permission holder
         if (!book.canManage(currentUser)) {
-            throw new AccessDeniedException(
-                    "Bạn không có quyền xóa sách này! Chỉ người tạo ra sách hoặc Super Admin mới có quyền.");
+            throw new AccessDeniedException("Bạn không có quyền xóa sách này!");
         }
 
         bookRepository.delete(book);
@@ -164,6 +164,8 @@ public class BookService {
                 .categoryName(book.getCategory() != null ? book.getCategory().getName() : null)
                 .createdByUserId(book.getCreatedBy() != null ? book.getCreatedBy().getId() : null)
                 .createdByName(book.getCreatedBy() != null ? book.getCreatedBy().getUsername() : "Hệ thống")
+                .updatedByUserId(book.getUpdatedBy() != null ? book.getUpdatedBy().getId() : null)
+                .updatedByName(book.getUpdatedBy() != null ? book.getUpdatedBy().getUsername() : null)
                 .createdAt(book.getCreatedAt())
                 .updatedAt(book.getUpdatedAt())
                 .isPurchased(isPurchased)

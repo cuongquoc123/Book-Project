@@ -41,6 +41,9 @@ export async function loginUser({ username, password, roleHint = 'CLIENT' }) {
         email: data.email,
         fullName: data.fullname || data.fullName,
         role: data.role || roleHint,
+        roleDisplayName: data.roleDisplayName,
+        canAccessAdmin: data.canAccessAdmin !== false,
+        canAccessUser: data.canAccessUser !== false,
       },
     });
   }
@@ -58,6 +61,10 @@ export async function createAdminUser({ username, email, password, fullname }) {
 
 export async function getAllUsers() {
   return to(axiosClient.get('/auth/users'));
+}
+
+export async function updateUserRole(userId, roleId) {
+  return to(axiosClient.put(`/auth/users/${userId}/role`, { roleId }));
 }
 
 export async function logoutUser(refreshToken) {
@@ -173,4 +180,32 @@ export async function loginWithGoogle(idToken) {
     });
   }
   return [err, data];
+}
+
+/* ==========================================
+ * Role & Permission API Endpoints
+ * ========================================== */
+
+export async function getAllRoles() {
+  return to(axiosClient.get('/roles'));
+}
+
+export async function getRoleById(id) {
+  return to(axiosClient.get(`/roles/${id}`));
+}
+
+export async function createRole(data) {
+  return to(axiosClient.post('/roles', data));
+}
+
+export async function updateRole(id, data) {
+  return to(axiosClient.put(`/roles/${id}`, data));
+}
+
+export async function deleteRole(id) {
+  return to(axiosClient.delete(`/roles/${id}`));
+}
+
+export async function getGroupedPermissions() {
+  return to(axiosClient.get('/permissions'));
 }

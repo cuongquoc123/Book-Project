@@ -9,8 +9,9 @@ import org.springframework.stereotype.Service;
 
 import com.example.bookbe.dto.AuthRespone;
 import com.example.bookbe.entity.RefreshToken;
+import com.example.bookbe.entity.RoleEntity;
 import com.example.bookbe.entity.User;
-import com.example.bookbe.enums.Role;
+import com.example.bookbe.repository.RoleRepository;
 import com.example.bookbe.repository.UserRepository;
 import com.example.bookbe.utils.JwtTokenProvider;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
@@ -25,15 +26,18 @@ public class GoogleAuthService {
     private String clientId;
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
 
     public GoogleAuthService(UserRepository userRepository,
+            RoleRepository roleRepository,
             JwtTokenProvider jwtTokenProvider,
             RefreshTokenService refreshTokenService,
             PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
@@ -55,25 +59,36 @@ public class GoogleAuthService {
         String name = (String) payload.get("name");
 
         User user = userRepository.findByEmail(email).orElseGet(() -> {
+            RoleEntity clientRole = roleRepository.findByName("CLIENT").orElse(null);
             User newUser = new User();
             newUser.setEmail(email);
             newUser.setFullName(name != null ? name : email.split("@")[0]);
             newUser.setUsername(email.split("@")[0] + "_" + UUID.randomUUID().toString().substring(0, 4));
             newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
-            newUser.setRole(Role.CLIENT);
+            newUser.setRole(clientRole);
             return userRepository.save(newUser);
         });
 
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), user.getRole().name());
+        String roleStr = user.getRole() != null ? user.getRole().getName() : "CLIENT";
+        String roleDisplayName = user.getRole() != null ? user.getRole().getDisplayName() : roleStr;
+        boolean canAccessAdmin = user.getRole() != null ? user.getRole().isCanAccessAdmin() : false;
+        boolean canAccessUser = user.getRole() != null ? user.getRole().isCanAccessUser() : true;
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getUsername(), roleStr);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
 
         return AuthRespone.builder()
+                .id(user.getId())
+                .username(user.getUsername())
                 .accessToken(accessToken)
                 .refreshToken(refreshToken.getToken())
                 .TokenType("Bearer")
                 .fullname(user.getFullName())
                 .email(user.getEmail())
-                .role(user.getRole().name())
+                .role(roleStr)
+                .roleDisplayName(roleDisplayName)
+                .canAccessAdmin(canAccessAdmin)
+                .canAccessUser(canAccessUser)
                 .build();
     }
 }

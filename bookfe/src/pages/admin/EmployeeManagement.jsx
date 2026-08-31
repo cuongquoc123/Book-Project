@@ -11,9 +11,12 @@ import {
   UserPlus,
   Mail,
   Lock,
+  Edit2,
+  CheckCircle,
+  Key,
 } from 'lucide-react';
-import { getCurrentUser, getAllUsers, createAdminUser } from '../../services/api';
-import { getUser } from '../../utils/auth';
+import { getCurrentUser, getAllUsers, createAdminUser, getAllRoles, updateUserRole } from '../../services/api';
+import { getUser, setAuthData } from '../../utils/auth';
 import AdminHeader from './AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import FormInput from '../../components/FormInput';
@@ -22,9 +25,11 @@ import '../../styles/dashboard.css';
 export default function EmployeeManagement() {
   const [currentUser, setCurrentUser] = useState(() => getUser() || {});
   const [userList, setUserList] = useState([]);
+  const [rolesList, setRolesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [alert, setAlert] = useState({ type: '', message: '' });
+  const [updatingUserId, setUpdatingUserId] = useState(null);
 
   // Modal State for Creating Admin Account
   const [showAddModal, setShowAddModal] = useState(false);
@@ -42,13 +47,19 @@ export default function EmployeeManagement() {
 
     const [userErr, userData] = await getCurrentUser();
     if (!userErr && userData) {
-      setCurrentUser({
+      const updatedUser = {
         id: userData.id,
         username: userData.username,
         email: userData.email,
         fullName: userData.fullName || userData.fullname,
         role: userData.role,
-      });
+        roleDisplayName: userData.roleDisplayName,
+        permissions: userData.permissions || (userData.roleDetails?.permissions ? userData.roleDetails.permissions.map(p => p.name) : []),
+        canAccessAdmin: userData.canAccessAdmin,
+        canAccessUser: userData.canAccessUser,
+      };
+      setCurrentUser(updatedUser);
+      setAuthData({ user: updatedUser });
     }
 
     const [usersErr, usersRes] = await getAllUsers();
@@ -56,6 +67,11 @@ export default function EmployeeManagement() {
       setAlert({ type: 'error', message: `Lỗi tải danh sách nhân viên: ${usersErr}` });
     } else if (Array.isArray(usersRes)) {
       setUserList(usersRes);
+    }
+
+    const [rolesErr, rolesRes] = await getAllRoles();
+    if (!rolesErr && Array.isArray(rolesRes)) {
+      setRolesList(rolesRes);
     }
 
     setLoading(false);
@@ -75,7 +91,8 @@ export default function EmployeeManagement() {
         user.username?.toLowerCase().includes(q) ||
         user.email?.toLowerCase().includes(q) ||
         user.fullName?.toLowerCase().includes(q) ||
-        user.role?.toLowerCase().includes(q)
+        user.role?.toLowerCase().includes(q) ||
+        user.roleDisplayName?.toLowerCase().includes(q)
       );
     });
   }, [userList, searchQuery]);
@@ -110,6 +127,33 @@ export default function EmployeeManagement() {
     }
   };
 
+  // Change User Role handler
+  const handleUserRoleChange = async (targetUser, newRoleId) => {
+    if (!newRoleId) return;
+    if (targetUser.username === 'supper') {
+      setAlert({ type: 'error', message: 'Không thể thay đổi Role của tài khoản Super Admin gốc!' });
+      return;
+    }
+
+    setUpdatingUserId(targetUser.id);
+    const [err, res] = await updateUserRole(targetUser.id, Number(newRoleId));
+    setUpdatingUserId(null);
+
+    if (err) {
+      setAlert({ type: 'error', message: `Đổi Role cho '${targetUser.username}' thất bại: ${err}` });
+    } else {
+      setAlert({
+        type: 'success',
+        message: `Cập nhật Role cho người dùng '${targetUser.username}' thành '${res.roleDisplayName || res.roleName}' thành công!`,
+      });
+      // Refresh list to update UI
+      const [usersErr, usersRes] = await getAllUsers();
+      if (!usersErr && Array.isArray(usersRes)) {
+        setUserList(usersRes);
+      }
+    }
+  };
+
   // Metrics
   const adminCount = useMemo(
     () => userList.filter((u) => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length,
@@ -132,10 +176,10 @@ export default function EmployeeManagement() {
           <div>
             <h1 className="dash-page-title">
               <Users size={30} color="#7C3AED" />
-              <span>Quản Lý Nhân Viên & Tài Khoản Hệ Thống</span>
+              <span>Quản Lý Nhân Viên & Phân Vai Trò (User Roles)</span>
             </h1>
             <p className="dash-page-subtitle">
-              Tính năng dành riêng cho Super Admin. Quản lý danh sách tài khoản Quản trị viên và Độc giả trong hệ thống.
+              Tính năng dành riêng cho Super Admin và Người quản lý. Điều chỉnh linh hoạt các Role (Hệ thống hoặc Custom Role) cho người dùng.
             </p>
           </div>
 
@@ -245,7 +289,8 @@ export default function EmployeeManagement() {
                   <th>Tên Đăng Nhập (Username)</th>
                   <th>Họ và Tên (Full Name)</th>
                   <th>Email</th>
-                  <th>Vai Trò (Role)</th>
+                  <th>Role Hiện Tại</th>
+                  <th>Gán / Điều Chỉnh Role</th>
                   <th>Ngày Khởi Tạo</th>
                 </tr>
               </thead>
@@ -253,6 +298,8 @@ export default function EmployeeManagement() {
                 {filteredUsers.map((user) => {
                   const isSuper = user.role === 'SUPER_ADMIN';
                   const isAdmin = user.role === 'ADMIN';
+                  const isRootSuper = user.username === 'supper';
+
                   return (
                     <tr key={user.id}>
                       <td style={{ fontWeight: 700, color: '#64748B' }}>#{user.id}</td>
@@ -266,8 +313,44 @@ export default function EmployeeManagement() {
                       <td>{user.email || 'Chưa cập nhật'}</td>
                       <td>
                         <span className={`role-tag ${isSuper ? 'super-admin' : isAdmin ? 'admin' : 'client'}`}>
-                          {user.role}
+                          {user.roleDisplayName || user.role}
                         </span>
+                      </td>
+                      <td>
+                        {isRootSuper ? (
+                          <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Lock size={14} /> Gốc (Cố định)
+                          </span>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <select
+                              className="dash-filter-select"
+                              style={{
+                                padding: '0.4rem 0.65rem',
+                                fontSize: '0.85rem',
+                                fontWeight: 600,
+                                borderRadius: '8px',
+                                border: '1px solid #CBD5E1',
+                                background: updatingUserId === user.id ? '#F1F5F9' : '#FFFFFF',
+                                minWidth: '160px',
+                              }}
+                              value={user.roleId || ''}
+                              onChange={(e) => handleUserRoleChange(user, e.target.value)}
+                              disabled={updatingUserId === user.id}
+                            >
+                              <option value="" disabled>-- Chọn Role --</option>
+                              {rolesList.map((r) => (
+                                <option key={r.id} value={r.id}>
+                                  {r.displayName || r.name} {r.isSystem ? '(System)' : '(Custom)'}
+                                </option>
+                              ))}
+                            </select>
+
+                            {updatingUserId === user.id && (
+                              <RefreshCw size={14} className="spin" color="#4F46E5" />
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td style={{ fontSize: '0.825rem', color: '#64748B' }}>
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : 'Ban đầu'}
@@ -387,7 +470,7 @@ export default function EmployeeManagement() {
                 </div>
 
                 <div style={{ background: '#F8FAFC', padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.825rem', color: '#64748B' }}>
-                  ℹ️ Tài khoản khởi tạo sẽ mặc định được gán vai trò <strong>ADMIN</strong> có quyền Thêm/Sửa/Xóa sách và loại sách do chính mình tạo ra.
+                  ℹ️ Tài khoản khởi tạo sẽ mặc định được gán vai trò <strong>ADMIN</strong>. Sau khi khởi tạo, bạn có thể chuyển sang bất kỳ Custom Role nào khác trong bảng quản lý.
                 </div>
               </div>
 

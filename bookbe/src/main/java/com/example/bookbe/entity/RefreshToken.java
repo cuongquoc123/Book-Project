@@ -33,4 +33,8 @@ public class RefreshToken {
     private User user;
     @Column(nullable = false)
     private Instant expiryDate;
+
+    @Builder.Default
+    @Column(name = "is_deleted", nullable = false, columnDefinition = "BOOLEAN DEFAULT false")
+    private boolean isDeleted = false;
 }

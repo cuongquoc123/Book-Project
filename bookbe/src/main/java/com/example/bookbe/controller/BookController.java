@@ -72,7 +72,7 @@ public class BookController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('BOOK_CREATE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<BookResponse> createBook(@RequestBody BookRequest request) {
         User currentUser = getCurrentUser();
         BookResponse response = bookService.createBook(request, currentUser);
@@ -80,7 +80,7 @@ public class BookController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('BOOK_UPDATE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<BookResponse> updateBook(@PathVariable Long id, @RequestBody BookRequest request) {
         User currentUser = getCurrentUser();
         BookResponse response = bookService.updateBook(id, request, currentUser);
@@ -88,7 +88,7 @@ public class BookController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('BOOK_DELETE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> deleteBook(@PathVariable Long id) {
         User currentUser = getCurrentUser();
         bookService.deleteBook(id, currentUser);

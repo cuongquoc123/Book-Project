@@ -65,6 +65,16 @@ export default function ClientLogin() {
       if (err) {
         setAlert({ type: 'error', message: err });
       } else {
+        if (data?.canAccessUser === false) {
+          clearAuth();
+          setAlert({
+            type: 'error',
+            message: `Tài khoản của bạn (Role: ${data?.roleDisplayName || data?.role}) không được phép truy cập Trang Độc Giả (User Portal)!`,
+          });
+          setLoading(false);
+          return;
+        }
+
         const userRole = data?.role || 'CLIENT';
         setAlert({ type: 'success', message: 'Đăng nhập thành công! Đang chuyển hướng...' });
         setTimeout(() => {

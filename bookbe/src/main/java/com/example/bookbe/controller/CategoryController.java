@@ -69,7 +69,7 @@ public class CategoryController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('CATEGORY_CREATE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<CategoryResponse> createCategory(@RequestBody CategoryRequest request) {
         User currentUser = getCurrentUser();
         CategoryResponse response = categoryService.createCategory(request, currentUser);
@@ -77,7 +77,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('CATEGORY_UPDATE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<CategoryResponse> updateCategory(@PathVariable Long id,
             @RequestBody CategoryRequest request) {
         User currentUser = getCurrentUser();
@@ -86,7 +86,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('CATEGORY_DELETE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> deleteCategory(@PathVariable Long id) {
         User currentUser = getCurrentUser();
         categoryService.deleteCategory(id, currentUser);
