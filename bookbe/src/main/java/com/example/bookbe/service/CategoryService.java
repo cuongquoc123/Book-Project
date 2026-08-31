@@ -1,8 +1,7 @@
 package com.example.bookbe.service;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,10 +43,9 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryResponse> getAllCategories() {
-        return categoryRepository.findAll().stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+    public Page<CategoryResponse> getAllCategories(Pageable pageable) {
+        return categoryRepository.findAll(pageable)
+                .map(cate -> mapToResponse(cate));
     }
 
     @Transactional(readOnly = true)
@@ -62,9 +60,9 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy loại sách với ID: " + id));
 
-        // Permission check: Super Admin OR Owner Admin
+        // Permission check: Admin / Super Admin / Permission holder
         if (!category.canManage(currentUser)) {
-            throw new AccessDeniedException("Bạn không có quyền chỉnh sửa loại sách này! Chỉ người tạo ra loại sách hoặc Super Admin mới có quyền.");
+            throw new AccessDeniedException("Bạn không có quyền chỉnh sửa loại sách này!");
         }
 
         if (request.getName() != null && !request.getName().trim().isEmpty()) {
@@ -79,6 +77,8 @@ public class CategoryService {
             category.setDescription(request.getDescription());
         }
 
+        category.setUpdatedBy(currentUser);
+
         Category updatedCategory = categoryRepository.save(category);
         return mapToResponse(updatedCategory);
     }
@@ -88,22 +88,25 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy loại sách với ID: " + id));
 
-        // Permission check: Super Admin OR Owner Admin
+        // Permission check: Admin / Super Admin / Permission holder
         if (!category.canManage(currentUser)) {
-            throw new AccessDeniedException("Bạn không có quyền xóa loại sách này! Chỉ người tạo ra loại sách hoặc Super Admin mới có quyền.");
+            throw new AccessDeniedException("Bạn không có quyền xóa loại sách này!");
         }
 
         categoryRepository.delete(category);
     }
 
     public CategoryResponse mapToResponse(Category category) {
-        if (category == null) return null;
+        if (category == null)
+            return null;
         return CategoryResponse.builder()
                 .id(category.getId())
                 .name(category.getName())
                 .description(category.getDescription())
                 .createdByUserId(category.getCreatedBy() != null ? category.getCreatedBy().getId() : null)
                 .createdByName(category.getCreatedBy() != null ? category.getCreatedBy().getUsername() : "Hệ thống")
+                .updatedByUserId(category.getUpdatedBy() != null ? category.getUpdatedBy().getId() : null)
+                .updatedByName(category.getUpdatedBy() != null ? category.getUpdatedBy().getUsername() : null)
                 .createdAt(category.getCreatedAt())
                 .updatedAt(category.getUpdatedAt())
                 .build();

@@ -1,7 +1,10 @@
 package com.example.bookbe.controller;
 
-import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.bookbe.dto.BookRequest;
@@ -44,21 +48,31 @@ public class BookController {
     }
 
     @GetMapping
-    public ResponseEntity<List<BookResponse>> getAllBooks() {
+    public ResponseEntity<Page<BookResponse>> getAllBooks(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "5") int size,
+        @RequestParam(defaultValue = "id") String sortBy,
+        @RequestParam(defaultValue = "desc") String sortDir
+    ) 
+    {
         User currentUser = getCurrentUser();
-        List<BookResponse> books = bookService.getAllBooks(currentUser);
+
+        Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+
+        Pageable pageable = PageRequest.of(page, size,sort);
+        Page<BookResponse> books = bookService.getAllBooks(pageable,currentUser);
         return ResponseEntity.ok(books);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<BookResponse> getBookById(@PathVariable Long id) {
         User currentUser = getCurrentUser();
-        BookResponse book = bookService.getBookById(id, currentUser);
+         BookResponse book = bookService.getBookById(id, currentUser);
         return ResponseEntity.ok(book);
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('BOOK_CREATE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<BookResponse> createBook(@RequestBody BookRequest request) {
         User currentUser = getCurrentUser();
         BookResponse response = bookService.createBook(request, currentUser);
@@ -66,7 +80,7 @@ public class BookController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('BOOK_UPDATE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<BookResponse> updateBook(@PathVariable Long id, @RequestBody BookRequest request) {
         User currentUser = getCurrentUser();
         BookResponse response = bookService.updateBook(id, request, currentUser);
@@ -74,7 +88,7 @@ public class BookController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('BOOK_DELETE') or hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<?> deleteBook(@PathVariable Long id) {
         User currentUser = getCurrentUser();
         bookService.deleteBook(id, currentUser);

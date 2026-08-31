@@ -8,7 +8,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,14 +22,13 @@ import com.example.bookbe.dto.RefreshTokenRequest;
 import com.example.bookbe.dto.RegisterRequest;
 import com.example.bookbe.dto.TokenRefreshRespone;
 import com.example.bookbe.entity.User;
-import com.example.bookbe.enums.Role;
 import com.example.bookbe.service.AuthService;
 import com.example.bookbe.service.GoogleAuthService;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
-    
+
     private final GoogleAuthService googleAuthService;
     private final AuthService authService;
 
@@ -38,18 +39,17 @@ public class AuthController {
 
     private boolean isUserAuthenticated() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return authentication != null 
-            && authentication.isAuthenticated() 
-            && !"anonymousUser".equals(authentication.getPrincipal());
+        return authentication != null
+                && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getPrincipal());
     }
 
     @PostMapping("/google")
-    public ResponseEntity<?> postMethodName(@RequestBody GoogleLoginRequest request) throws Exception {
+    public ResponseEntity<?> loginWithGoogle(@RequestBody GoogleLoginRequest request) throws Exception {
         AuthRespone respone = googleAuthService.authenticaGoogleUser(request.getIdToken());
 
         return ResponseEntity.ok(respone);
     }
-    
 
     @PostMapping("/register")
     public ResponseEntity<Map<String, Object>> register(@RequestBody RegisterRequest request) {
@@ -57,21 +57,19 @@ public class AuthController {
         Map<String, Object> response = Map.of(
                 "message", "Đăng ký tài khoản thành công!",
                 "username", registeredUser.getUsername(),
-                "email", registeredUser.getEmail()
-        );
+                "email", registeredUser.getEmail());
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @PostMapping("/create-admin")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<Map<String, Object>> createAdmin(@RequestBody RegisterRequest request) {
-        User createdAdmin = authService.createAdminAccount(request, Role.ADMIN);
+        User createdAdmin = authService.createAdminAccount(request, "ADMIN");
         Map<String, Object> response = Map.of(
                 "message", "Tạo tài khoản Quản trị viên (ADMIN) thành công!",
                 "username", createdAdmin.getUsername(),
                 "email", createdAdmin.getEmail(),
-                "role", createdAdmin.getRole().name()
-        );
+                "role", createdAdmin.getRole() != null ? createdAdmin.getRole().getName() : "ADMIN");
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
@@ -90,11 +88,8 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<?> logout(@RequestBody(required = false) RefreshTokenRequest request) {
         if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
-            try {
-                authService.logout(request.getRefreshToken());
-            } catch (Exception e) {
-                // Ignore token delete error if already invalidated
-            }
+            authService.logout(request.getRefreshToken());
+
         }
         return ResponseEntity.ok(Map.of("message", "Đăng xuất thành công!"));
     }
@@ -116,5 +111,17 @@ public class AuthController {
     public ResponseEntity<java.util.List<Map<String, Object>>> getAllUsers() {
         java.util.List<Map<String, Object>> users = authService.getAllUsers();
         return ResponseEntity.ok(users);
+    }
+
+    @PutMapping("/users/{userId}/role")
+    @PreAuthorize("hasAuthority('USER_UPDATE') or hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Map<String, Object>> updateUserRole(@PathVariable Long userId, @RequestBody Map<String, Object> payload) {
+        Object roleIdObj = payload.get("roleId");
+        if (roleIdObj == null) {
+            throw new IllegalArgumentException("Vui lòng cung cấp roleId hợp lệ!");
+        }
+        Long roleId = Long.valueOf(roleIdObj.toString());
+        Map<String, Object> result = authService.updateUserRole(userId, roleId);
+        return ResponseEntity.ok(result);
     }
 }

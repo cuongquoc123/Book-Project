@@ -1,13 +1,19 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, FolderTree, Users, LogOut, User, Crown, ShieldCheck } from 'lucide-react';
 import { logoutUser } from '../../services/api';
-import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
+import { clearAuth, getRefreshToken, getUser, hasResourcePermission } from '../../utils/auth';
 
 export default function AdminHeader({ currentUser }) {
   const navigate = useNavigate();
   const user = currentUser || getUser() || {};
   const isSuperAdmin = user.role === 'SUPER_ADMIN';
+
+  // Resource permission checks
+  const canManageBooks = useMemo(() => hasResourcePermission(user, 'BOOK'), [user]);
+  const canManageCategories = useMemo(() => hasResourcePermission(user, 'CATEGORY'), [user]);
+  const canManageRoles = useMemo(() => hasResourcePermission(user, 'ROLE'), [user]);
+  const canManageUsers = useMemo(() => isSuperAdmin || hasResourcePermission(user, 'USER'), [user, isSuperAdmin]);
 
   const handleLogout = async () => {
     const refreshToken = getRefreshToken();
@@ -17,9 +23,8 @@ export default function AdminHeader({ currentUser }) {
       clearAuth();
     }
 
-    // Role check for smart redirect: If admin -> /admin/login; If client -> /login
-    const userRole = user.role;
-    if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+    const canAdmin = user.canAccessAdmin !== false;
+    if (canAdmin) {
       navigate('/admin/login', { replace: true });
     } else {
       navigate('/login', { replace: true });
@@ -46,24 +51,37 @@ export default function AdminHeader({ currentUser }) {
             <span>Dashboard</span>
           </NavLink>
 
-          <NavLink
-            to="/admin/books"
-            className={({ isActive }) => `dash-nav-item ${isActive ? 'active' : ''}`}
-          >
-            <BookOpen size={18} />
-            <span>Quản Lý Sách</span>
-          </NavLink>
+          {canManageBooks && (
+            <NavLink
+              to="/admin/books"
+              className={({ isActive }) => `dash-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <BookOpen size={18} />
+              <span>Quản Lý Sách</span>
+            </NavLink>
+          )}
 
-          <NavLink
-            to="/admin/categories"
-            className={({ isActive }) => `dash-nav-item ${isActive ? 'active' : ''}`}
-          >
-            <FolderTree size={18} />
-            <span>Quản Lý Loại Sách</span>
-          </NavLink>
+          {canManageCategories && (
+            <NavLink
+              to="/admin/categories"
+              className={({ isActive }) => `dash-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <FolderTree size={18} />
+              <span>Quản Lý Loại Sách</span>
+            </NavLink>
+          )}
 
-          {/* Super Admin Only Route */}
-          {isSuperAdmin && (
+          {canManageRoles && (
+            <NavLink
+              to="/admin/roles"
+              className={({ isActive }) => `dash-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <ShieldCheck size={18} />
+              <span>Quản Lý Role</span>
+            </NavLink>
+          )}
+
+          {canManageUsers && (
             <NavLink
               to="/admin/users"
               className={({ isActive }) => `dash-nav-item ${isActive ? 'active' : ''}`}
@@ -81,7 +99,7 @@ export default function AdminHeader({ currentUser }) {
               {user.username || 'Admin'}
             </span>
             <span className={`role-tag ${isSuperAdmin ? 'super-admin' : 'admin'}`}>
-              {isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN'}
+              {user.roleDisplayName || user.role || (isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN')}
             </span>
           </div>
 

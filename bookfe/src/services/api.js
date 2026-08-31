@@ -41,6 +41,9 @@ export async function loginUser({ username, password, roleHint = 'CLIENT' }) {
         email: data.email,
         fullName: data.fullname || data.fullName,
         role: data.role || roleHint,
+        roleDisplayName: data.roleDisplayName,
+        canAccessAdmin: data.canAccessAdmin !== false,
+        canAccessUser: data.canAccessUser !== false,
       },
     });
   }
@@ -58,6 +61,10 @@ export async function createAdminUser({ username, email, password, fullname }) {
 
 export async function getAllUsers() {
   return to(axiosClient.get('/auth/users'));
+}
+
+export async function updateUserRole(userId, roleId) {
+  return to(axiosClient.put(`/auth/users/${userId}/role`, { roleId }));
 }
 
 export async function logoutUser(refreshToken) {
@@ -87,8 +94,9 @@ export async function getCurrentUser() {
  * Category API Endpoints
  * ========================================== */
 
-export async function getAllCategories() {
-  return to(axiosClient.get('/categories'));
+export async function getAllCategories(params = {}) {
+  const { page = 0, size = 100, sortBy = 'id', sortDir = 'desc' } = params;
+  return to(axiosClient.get('/categories', { params: { page, size, sortBy, sortDir } }));
 }
 
 export async function getCategoryById(id) {
@@ -111,8 +119,9 @@ export async function deleteCategory(id) {
  * Book API Endpoints
  * ========================================== */
 
-export async function getAllBooks() {
-  return to(axiosClient.get('/books'));
+export async function getAllBooks(params = {}) {
+  const { page = 0, size = 5, sortBy = 'id', sortDir = 'desc' } = params;
+  return to(axiosClient.get('/books', { params: { page, size, sortBy, sortDir } }));
 }
 
 export async function getBookById(id) {
@@ -147,6 +156,11 @@ export async function uploadImage(file) {
   );
 }
 
+export async function deleteUploadedImage(fileUrl) {
+  if (!fileUrl) return [null, null];
+  return to(axiosClient.delete('/upload/image', { params: { fileUrl } }));
+}
+
 export async function loginWithGoogle(idToken) {
   const [err, data] = await to(axiosClient.post('/auth/google', { idToken }));
 
@@ -166,4 +180,32 @@ export async function loginWithGoogle(idToken) {
     });
   }
   return [err, data];
+}
+
+/* ==========================================
+ * Role & Permission API Endpoints
+ * ========================================== */
+
+export async function getAllRoles() {
+  return to(axiosClient.get('/roles'));
+}
+
+export async function getRoleById(id) {
+  return to(axiosClient.get(`/roles/${id}`));
+}
+
+export async function createRole(data) {
+  return to(axiosClient.post('/roles', data));
+}
+
+export async function updateRole(id, data) {
+  return to(axiosClient.put(`/roles/${id}`, data));
+}
+
+export async function deleteRole(id) {
+  return to(axiosClient.delete(`/roles/${id}`));
+}
+
+export async function getGroupedPermissions() {
+  return to(axiosClient.get('/permissions'));
 }

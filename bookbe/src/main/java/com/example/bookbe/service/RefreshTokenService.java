@@ -50,11 +50,13 @@ public class RefreshTokenService {
             refreshToken = existingTokenOpt.get();
             refreshToken.setToken(tokenStr);
             refreshToken.setExpiryDate(expiryDate);
+            refreshToken.setDeleted(false);
         } else {
             refreshToken = RefreshToken.builder()
                     .user(user)
                     .token(tokenStr)
                     .expiryDate(expiryDate)
+                    .isDeleted(false)
                     .build();
         }
 
@@ -62,8 +64,12 @@ public class RefreshTokenService {
     }
 
     public RefreshToken verifyExpiration(RefreshToken token) {
+        if (token.isDeleted()) {
+            throw new RefreshTokenException("Refresh token đã bị vô hiệu hóa hoặc đã được sử dụng!");
+        }
         if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
-            refreshTokenRepository.delete(token);
+            token.setDeleted(true);
+            refreshTokenRepository.save(token);
             throw new RefreshTokenException("Refresh token đã hết hạn. Vui lòng thực hiện đăng nhập lại!");
         }
         return token;
@@ -71,13 +77,13 @@ public class RefreshTokenService {
 
     @Transactional
     public void deleteByToken(String token) {
-        refreshTokenRepository.deleteByToken(token);
+        refreshTokenRepository.softDeleteByToken(token);
     }
 
     @Transactional
     public int deleteByUserId(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng với ID: " + userId));
-        return refreshTokenRepository.deleteByUser(user);
+        return refreshTokenRepository.softDeleteByUser(user);
     }
 }

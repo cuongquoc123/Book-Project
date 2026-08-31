@@ -17,6 +17,10 @@ import {
   Info,
   Sparkles,
   Layers,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 import { logoutUser, getCurrentUser, getAllBooks, getAllCategories } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
@@ -33,6 +37,12 @@ export default function UserHome() {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ type: '', message: '' });
 
+  // Pagination states (BE API: page, size)
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(4); // Default 4 books/page for great layout
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
   // Client-side Static Search, Category Filter & Sorting State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -41,7 +51,7 @@ export default function UserHome() {
   // Selected Book for Detail Modal
   const [selectedBook, setSelectedBook] = useState(null);
 
-  const fetchData = async () => {
+  const fetchData = async (targetPage = page, targetSize = pageSize) => {
     setLoading(true);
     setAlert({ type: '', message: '' });
 
@@ -58,25 +68,56 @@ export default function UserHome() {
     }
 
     // Fetch Categories
-    const [catErr, catRes] = await getAllCategories();
-    if (!catErr && Array.isArray(catRes)) {
-      setCategories(catRes);
+    const [catErr, catRes] = await getAllCategories({ page: 0, size: 100 });
+    if (!catErr && catRes) {
+      const catList = Array.isArray(catRes) ? catRes : (catRes.content || []);
+      setCategories(catList);
     }
 
-    // Fetch Books
-    const [bookErr, bookRes] = await getAllBooks();
+    // Fetch Books from BE with pagination
+    const [bookErr, bookRes] = await getAllBooks({
+      page: targetPage,
+      size: targetSize,
+      sortBy: 'id',
+      sortDir: 'desc',
+    });
+
     if (bookErr) {
       setAlert({ type: 'error', message: `Không thể tải danh sách sách từ server: ${bookErr}` });
-    } else if (Array.isArray(bookRes)) {
-      setBooks(bookRes);
+    } else if (bookRes) {
+      if (Array.isArray(bookRes)) {
+        setBooks(bookRes);
+        setTotalPages(1);
+        setTotalElements(bookRes.length);
+        setPage(0);
+      } else {
+        setBooks(bookRes.content || []);
+        setTotalPages(bookRes.totalPages || 0);
+        setTotalElements(bookRes.totalElements || 0);
+        setPage(bookRes.number !== undefined ? bookRes.number : targetPage);
+      }
     }
 
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(0, pageSize);
   }, []);
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 0 || (totalPages > 0 && newPage >= totalPages)) return;
+    setPage(newPage);
+    fetchData(newPage, pageSize);
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    const sizeNum = Number(newSize);
+    setPageSize(sizeNum);
+    setPage(0);
+    fetchData(0, sizeNum);
+  };
 
   const handleLogout = async () => {
     const refreshToken = getRefreshToken();
@@ -846,6 +887,179 @@ export default function UserHome() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* PAGINATION NAVIGATION BAR */}
+        {!loading && processedBooks.length > 0 && (
+          <div
+            style={{
+              marginTop: '2.5rem',
+              background: 'white',
+              borderRadius: '20px',
+              padding: '1.25rem 1.75rem',
+              border: '1px solid #E2E8F0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)',
+            }}
+          >
+            {/* Information count */}
+            <div style={{ fontSize: '0.9rem', color: '#64748B', fontWeight: 500 }}>
+              Hiển thị <strong style={{ color: '#0F172A' }}>{totalElements > 0 ? page * pageSize + 1 : 0}</strong> -{' '}
+              <strong style={{ color: '#0F172A' }}>{Math.min((page + 1) * pageSize, totalElements || books.length)}</strong>{' '}
+              trong tổng số <strong style={{ color: '#10B981' }}>{totalElements || books.length}</strong> cuốn sách
+              {totalPages > 0 && ` (Trang ${page + 1} / ${totalPages})`}
+            </div>
+
+            {/* Controls right */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {/* Page Size Select */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#64748B' }}>
+                <span>Hiển thị:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => handlePageSizeChange(e.target.value)}
+                  style={{
+                    padding: '0.35rem 0.65rem',
+                    borderRadius: '8px',
+                    border: '1px solid #CBD5E1',
+                    background: '#F8FAFC',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    color: '#334155',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value={2}>2 cuốn/trang</option>
+                  <option value={4}>4 cuốn/trang</option>
+                  <option value={8}>8 cuốn/trang</option>
+                  <option value={12}>12 cuốn/trang</option>
+                  <option value={24}>24 cuốn/trang</option>
+                </select>
+              </div>
+
+              {/* Pagination Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                {/* First Page */}
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(0)}
+                  disabled={page === 0}
+                  style={{
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: '10px',
+                    border: '1px solid #E2E8F0',
+                    background: page === 0 ? '#F1F5F9' : 'white',
+                    color: page === 0 ? '#CBD5E1' : '#334155',
+                    cursor: page === 0 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Trang đầu"
+                >
+                  <ChevronsLeft size={16} />
+                </button>
+
+                {/* Previous Page */}
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 0}
+                  style={{
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: '10px',
+                    border: '1px solid #E2E8F0',
+                    background: page === 0 ? '#F1F5F9' : 'white',
+                    color: page === 0 ? '#CBD5E1' : '#334155',
+                    cursor: page === 0 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Trang trước"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                {/* Page Number Buttons */}
+                {Array.from({ length: totalPages }, (_, idx) => idx)
+                  .filter((pIdx) => Math.abs(pIdx - page) <= 2 || pIdx === 0 || pIdx === totalPages - 1)
+                  .map((pIdx, idx, arr) => {
+                    const prevIdx = arr[idx - 1];
+                    const showEllipsis = prevIdx !== undefined && pIdx - prevIdx > 1;
+                    return (
+                      <React.Fragment key={pIdx}>
+                        {showEllipsis && <span style={{ padding: '0 0.2rem', color: '#94A3B8' }}>...</span>}
+                        <button
+                          type="button"
+                          onClick={() => handlePageChange(pIdx)}
+                          style={{
+                            padding: '0.45rem 0.85rem',
+                            borderRadius: '10px',
+                            border: page === pIdx ? 'none' : '1px solid #E2E8F0',
+                            background: page === pIdx ? '#10B981' : 'white',
+                            color: page === pIdx ? 'white' : '#334155',
+                            fontWeight: page === pIdx ? 800 : 600,
+                            fontSize: '0.875rem',
+                            cursor: 'pointer',
+                            boxShadow: page === pIdx ? '0 4px 10px rgba(16, 185, 129, 0.3)' : 'none',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          {pIdx + 1}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })}
+
+                {/* Next Page */}
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={totalPages === 0 || page >= totalPages - 1}
+                  style={{
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: '10px',
+                    border: '1px solid #E2E8F0',
+                    background: totalPages === 0 || page >= totalPages - 1 ? '#F1F5F9' : 'white',
+                    color: totalPages === 0 || page >= totalPages - 1 ? '#CBD5E1' : '#334155',
+                    cursor: totalPages === 0 || page >= totalPages - 1 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Trang tiếp"
+                >
+                  <ChevronRight size={16} />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(totalPages - 1)}
+                  disabled={totalPages === 0 || page >= totalPages - 1}
+                  style={{
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: '10px',
+                    border: '1px solid #E2E8F0',
+                    background: totalPages === 0 || page >= totalPages - 1 ? '#F1F5F9' : 'white',
+                    color: totalPages === 0 || page >= totalPages - 1 ? '#CBD5E1' : '#334155',
+                    cursor: totalPages === 0 || page >= totalPages - 1 ? '#CBD5E1' : '#334155',
+                    display: 'flex',
+                    alignItems: 'center',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title="Trang cuối"
+                >
+                  <ChevronsRight size={16} />
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </main>

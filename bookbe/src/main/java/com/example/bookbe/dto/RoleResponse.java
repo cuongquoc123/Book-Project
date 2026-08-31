@@ -1,6 +1,7 @@
 package com.example.bookbe.dto;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,14 +12,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CategoryResponse {
+public class RoleResponse {
     private Long id;
     private String name;
+    private String displayName;
     private String description;
-    private Long createdByUserId;
-    private String createdByName;
-    private Long updatedByUserId;
-    private String updatedByName;
+    private boolean isSystem;
+    private boolean canAccessAdmin;
+    private boolean canAccessUser;
+    private Set<PermissionResponse> permissions;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -38,6 +40,14 @@ public class CategoryResponse {
         this.name = name;
     }
 
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -46,36 +56,36 @@ public class CategoryResponse {
         this.description = description;
     }
 
-    public Long getCreatedByUserId() {
-        return createdByUserId;
+    public boolean isSystem() {
+        return isSystem;
     }
 
-    public void setCreatedByUserId(Long createdByUserId) {
-        this.createdByUserId = createdByUserId;
+    public void setSystem(boolean isSystem) {
+        this.isSystem = isSystem;
     }
 
-    public String getCreatedByName() {
-        return createdByName;
+    public boolean isCanAccessAdmin() {
+        return canAccessAdmin;
     }
 
-    public void setCreatedByName(String createdByName) {
-        this.createdByName = createdByName;
+    public void setCanAccessAdmin(boolean canAccessAdmin) {
+        this.canAccessAdmin = canAccessAdmin;
     }
 
-    public Long getUpdatedByUserId() {
-        return updatedByUserId;
+    public boolean isCanAccessUser() {
+        return canAccessUser;
     }
 
-    public void setUpdatedByUserId(Long updatedByUserId) {
-        this.updatedByUserId = updatedByUserId;
+    public void setCanAccessUser(boolean canAccessUser) {
+        this.canAccessUser = canAccessUser;
     }
 
-    public String getUpdatedByName() {
-        return updatedByName;
+    public Set<PermissionResponse> getPermissions() {
+        return permissions;
     }
 
-    public void setUpdatedByName(String updatedByName) {
-        this.updatedByName = updatedByName;
+    public void setPermissions(Set<PermissionResponse> permissions) {
+        this.permissions = permissions;
     }
 
     public LocalDateTime getCreatedAt() {

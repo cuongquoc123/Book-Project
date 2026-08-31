@@ -53,6 +53,10 @@ public class Book {
     @JoinColumn(name = "created_by_user_id")
     private User createdBy;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "updated_by_user_id")
+    private User updatedBy;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -135,6 +139,14 @@ public class Book {
         this.createdBy = createdBy;
     }
 
+    public User getUpdatedBy() {
+        return updatedBy;
+    }
+
+    public void setUpdatedBy(User updatedBy) {
+        this.updatedBy = updatedBy;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
@@ -146,11 +158,6 @@ public class Book {
     public boolean canManage(User user) {
         if (user == null)
             return false;
-        if (user.isSuperAdmin())
-            return true;
-        if (user.isAdmin() && this.createdBy != null) {
-            return this.createdBy.getId().equals(user.getId());
-        }
-        return false;
+        return user.isSuperAdmin() || user.isAdmin();
     }
 }

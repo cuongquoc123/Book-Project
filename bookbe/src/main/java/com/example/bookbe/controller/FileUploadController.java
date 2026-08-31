@@ -10,6 +10,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,6 +57,28 @@ public class FileUploadController {
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("message", "Lỗi lưu file: " + e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/image")
+    public ResponseEntity<?> deleteImage(@RequestParam("fileUrl") String fileUrl) {
+        if (fileUrl == null || fileUrl.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "URL hình ảnh không hợp lệ!"));
+        }
+
+        try {
+            String filename = fileUrl.substring(fileUrl.lastIndexOf("/") + 1);
+            Path filePath = Paths.get("uploads").resolve(filename);
+
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+                return ResponseEntity.ok(Map.of("message", "Đã xóa tệp hình ảnh khỏi máy chủ!"));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "Tệp hình ảnh không tồn tại!"));
+            }
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Lỗi xóa file: " + e.getMessage()));
         }
     }
 }
