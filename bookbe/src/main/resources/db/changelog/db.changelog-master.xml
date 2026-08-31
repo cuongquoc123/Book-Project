@@ -127,4 +127,24 @@
         </update>
     </changeSet>
 
+    <changeSet id="20260831-07-create-revoked-token-table" author="bookbe">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="revoked_token"/>
+            </not>
+        </preConditions>
+        <createTable tableName="revoked_token">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="token" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
 </databaseChangeLog>
+
