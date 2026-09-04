@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.example.bookbe.dto.ErrorRespone;
 
+import jakarta.mail.MessagingException;
+
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -57,6 +59,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorRespone> handlerIllegalArgumentException(IllegalArgumentException ex) {
         ErrorRespone response = new ErrorRespone(HttpStatus.BAD_REQUEST.value(), ex.getMessage());
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(MessagingException.class) 
+    public ResponseEntity<ErrorRespone> handlerMessagingException(MessagingException ex) {
+        ErrorRespone respone = new ErrorRespone(
+            HttpStatus.INTERNAL_SERVER_ERROR.value()
+            , "Không thể gửi email: Vui lòng kiểm tra lại địa chỉ email hoặc cấu hình mail server!"
+        );
+        return new ResponseEntity<>(respone,HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(Exception.class)

@@ -146,5 +146,16 @@
         </createTable>
     </changeSet>
 
+    <changeSet id="20260903-08-add-token-invalid-before-to-users" author="bookbe">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="users" columnName="token_invalid_before"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="token_invalid_before" type="DATETIME"/>
+        </addColumn>
+    </changeSet>
+
 </databaseChangeLog>
 

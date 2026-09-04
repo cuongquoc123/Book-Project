@@ -207,9 +207,9 @@ export default function ClientLogin() {
                     />
                     Ghi nhớ đăng nhập
                   </label>
-                  <a href="#forgot" onClick={(e) => e.preventDefault()} className="forgot-link">
+                  <Link to="/forgot-password" className="forgot-link">
                     Quên mật khẩu?
-                  </a>
+                  </Link>
                 </div>
               )}
 

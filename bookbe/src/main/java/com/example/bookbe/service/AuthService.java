@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.bookbe.dto.AuthRespone;
+import com.example.bookbe.dto.ChangePasswordRequest;
 import com.example.bookbe.dto.LoginRequest;
 import com.example.bookbe.dto.RefreshTokenRequest;
 import com.example.bookbe.dto.RegisterRequest;
@@ -26,6 +27,11 @@ import com.example.bookbe.exception.RefreshTokenException;
 import com.example.bookbe.repository.RoleRepository;
 import com.example.bookbe.repository.UserRepository;
 import com.example.bookbe.utils.JwtTokenProvider;
+import org.springframework.beans.factory.annotation.Value;
+import jakarta.mail.MessagingException;
+
+import java.time.LocalDateTime;
+import org.springframework.security.access.AccessDeniedException;
 
 @Service
 public class AuthService {
@@ -36,19 +42,28 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
+    private final RateLimiterService rateLimiterService;
+    private final EmailService emailService;
+
+    @Value("${app.frontend.url:http://localhost:5173}")
+    private String frontEndUR;
 
     public AuthService(UserRepository userRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             JwtTokenProvider jwtTokenProvider,
-            RefreshTokenService refreshTokenService) {
+            RefreshTokenService refreshTokenService,
+            RateLimiterService rateLimiterService,
+            EmailService emailService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtTokenProvider = jwtTokenProvider;
         this.refreshTokenService = refreshTokenService;
+        this.rateLimiterService = rateLimiterService;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -239,5 +254,104 @@ public class AuthService {
         res.put("roleName", role.getName());
         res.put("roleDisplayName", role.getDisplayName());
         return res;
+    }
+
+    @Transactional
+    public Map<String, Object> changePassword(ChangePasswordRequest request, String currentUsername,
+            String currentToken) {
+        if (currentUsername == null || currentUsername.isBlank()) {
+            throw new IllegalArgumentException("Yêu cầu xác thực người dùng!");
+        }
+
+        User currentUser = userRepository.findByUsername(currentUsername)
+                .orElseThrow(
+                        () -> new IllegalArgumentException("Không tìm thấy người dùng hiện tại: " + currentUsername));
+
+        boolean isSuperAdmin = currentUser.isSuperAdmin();
+
+        User targetUser;
+        boolean isChangingSelf = (request.getUserId() == null || request.getUserId().equals(currentUser.getId()));
+
+        if (isChangingSelf) {
+            targetUser = currentUser;
+            // Bắt buộc kiểm tra mật khẩu cũ đối với tài khoản tự đổi
+            if (request.getOldPassword() == null || request.getOldPassword().isBlank()) {
+                throw new IllegalArgumentException("Vui lòng nhập mật khẩu hiện tại!");
+            }
+            if (!passwordEncoder.matches(request.getOldPassword(), targetUser.getPassword())) {
+                throw new IllegalArgumentException("Mật khẩu hiện tại không chính xác!");
+            }
+        } else {
+            // Đổi mật khẩu cho người khác -> CHỈ SUPER_ADMIN mới có quyền
+            if (!isSuperAdmin) {
+                throw new AccessDeniedException("Bạn không có quyền đổi mật khẩu của người dùng khác!");
+            }
+            targetUser = userRepository.findById(request.getUserId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Không tìm thấy người dùng với ID: " + request.getUserId()));
+        }
+
+        // Validate mật khẩu mới
+        String newPassword = request.getNewPassword();
+        if (newPassword == null || newPassword.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng nhập mật khẩu mới!");
+        }
+        if (newPassword.trim().length() < 6) {
+            throw new IllegalArgumentException("Mật khẩu mới phải có độ dài tối thiểu 6 ký tự!");
+        }
+
+        // Kiểm tra mật khẩu mới không được trùng với mật khẩu cũ
+        if (passwordEncoder.matches(newPassword, targetUser.getPassword())) {
+            throw new IllegalArgumentException("Mật khẩu mới không được trùng với mật khẩu hiện tại!");
+        }
+
+        // Cập nhật mật khẩu mới
+        targetUser.setPassword(passwordEncoder.encode(newPassword));
+
+        // Xử lý logout tất cả clients / vô hiệu hóa toàn bộ token nếu được yêu cầu
+        boolean loggedOutAll = false;
+        if (request.isLogoutAllClients()) {
+            // 1. Đặt mốc thời gian vô hiệu hóa toàn bộ Access Token của user này
+            targetUser.setTokenInvalidBefore(LocalDateTime.now().minusSeconds(1));
+
+            // 2. Soft-delete toàn bộ Refresh Token của user này
+            refreshTokenService.deleteByUserId(targetUser.getId());
+
+            // 3. Nếu người đổi là chính mình và có token hiện tại, đưa token này vào
+            // blacklist
+            if (isChangingSelf && currentToken != null && !currentToken.isBlank()) {
+                rateLimiterService.revokeToken(currentToken);
+            }
+            loggedOutAll = true;
+        }
+
+        userRepository.save(targetUser);
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("message", isChangingSelf
+                ? "Đổi mật khẩu thành công!"
+                : "Đổi mật khẩu cho người dùng '" + targetUser.getUsername() + "' thành công!");
+        result.put("username", targetUser.getUsername());
+        result.put("userId", targetUser.getId());
+        result.put("logoutAllClients", loggedOutAll);
+        return result;
+    }
+
+    public void processForgotPassword(String email) throws MessagingException {
+
+        User user = userRepository.findByEmail(email.trim())
+                .orElseThrow(() -> new IllegalArgumentException("email chưa được liên kết tài khoản"));
+        String resetToken = jwtTokenProvider.generateResetPasswordToken(user.getEmail());
+        String resetLink = frontEndUR + "/reset-password?token=" + resetToken;
+        emailService.sendEmailResetPassword(email, resetLink);
+    }
+
+    @Transactional
+    public void processResetPassword(String token, String newPassword) {
+        String email = jwtTokenProvider.getEmailFromResetToken(token);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản tương ứng!"));
+        user.setPassword(passwordEncoder.encode(newPassword.trim()));
+        userRepository.save(user);
     }
 }

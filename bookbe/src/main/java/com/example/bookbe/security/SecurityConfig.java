@@ -27,8 +27,8 @@ public class SecurityConfig {
     private final RateLimitingFilter rateLimitingFilter;
 
     public SecurityConfig(JwtAuthenticationEntryPoint authenticationEntryPoint,
-                          JwtAuthenticationFilter jwtAuthenticationFilter,
-                          RateLimitingFilter rateLimitingFilter) {
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            RateLimitingFilter rateLimitingFilter) {
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
@@ -59,27 +59,31 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // 1. Endpoints công khai
-                .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/refresh", "/api/auth/logout", "/uploads/**", "/api/upload/**").permitAll()
-                // 2. Yêu cầu đã đăng nhập cho thông tin cá nhân
-                .requestMatchers("/api/auth/me").authenticated()
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(authenticationEntryPoint))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // 1. Endpoints công khai
+                        .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/google",
+                                "/api/auth/refresh",
+                                "/api/auth/logout", "/uploads/**",
+                                "/api/upload/**", "/api/auth/forgot-password",
+                                "/api/auth/reset-password")
+                        .permitAll()
+                        // 2. Yêu cầu đã đăng nhập cho thông tin cá nhân
+                        .requestMatchers("/api/auth/me").authenticated()
 
-                // 3. Roles & Permissions endpoints
-                .requestMatchers("/api/roles/**", "/api/permissions/**").authenticated()
+                        // 3. Roles & Permissions endpoints
+                        .requestMatchers("/api/roles/**", "/api/permissions/**").authenticated()
 
-                // 4. Categories & Books endpoints
-                .requestMatchers("/api/categories/**", "/api/books/**").authenticated()
+                        // 4. Categories & Books endpoints
+                        .requestMatchers("/api/categories/**", "/api/books/**").authenticated()
 
-                // 5. General endpoints
-                .requestMatchers("/api/super-admin/**").hasRole("SUPER_ADMIN")
-                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-                .anyRequest().authenticated()
-            );
+                        // 5. General endpoints
+                        .requestMatchers("/api/super-admin/**").hasRole("SUPER_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .anyRequest().authenticated());
         http.addFilterBefore(rateLimitingFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

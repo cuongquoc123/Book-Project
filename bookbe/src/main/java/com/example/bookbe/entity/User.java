@@ -46,6 +46,9 @@ public class User {
     @JoinColumn(name = "role_id")
     private RoleEntity role;
 
+    @Column(name = "token_invalid_before")
+    private LocalDateTime tokenInvalidBefore;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -110,6 +113,14 @@ public class User {
 
     public void setRole(RoleEntity role) {
         this.role = role;
+    }
+
+    public LocalDateTime getTokenInvalidBefore() {
+        return tokenInvalidBefore;
+    }
+
+    public void setTokenInvalidBefore(LocalDateTime tokenInvalidBefore) {
+        this.tokenInvalidBefore = tokenInvalidBefore;
     }
 
     public LocalDateTime getCreatedAt() {

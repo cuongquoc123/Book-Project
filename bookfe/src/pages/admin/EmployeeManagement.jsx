@@ -14,8 +14,11 @@ import {
   Edit2,
   CheckCircle,
   Key,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
-import { getCurrentUser, getAllUsers, createAdminUser, getAllRoles, updateUserRole } from '../../services/api';
+import { getCurrentUser, getAllUsers, createAdminUser, getAllRoles, updateUserRole, changePassword } from '../../services/api';
 import { getUser, setAuthData } from '../../utils/auth';
 import AdminHeader from './AdminHeader';
 import AlertToast from '../../components/AlertToast';
@@ -40,6 +43,18 @@ export default function EmployeeManagement() {
     email: '',
     fullname: '',
   });
+
+  // Modal State for Super Admin Resetting/Changing Password of any user
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [selectedUserForPass, setSelectedUserForPass] = useState(null);
+  const [passFormData, setPassFormData] = useState({
+    newPassword: '',
+    confirmPassword: '',
+    logoutAllClients: true,
+  });
+  const [showNewPassModal, setShowNewPassModal] = useState(false);
+  const [showConfirmPassModal, setShowConfirmPassModal] = useState(false);
+  const [submittingPass, setSubmittingPass] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -151,6 +166,59 @@ export default function EmployeeManagement() {
       if (!usersErr && Array.isArray(usersRes)) {
         setUserList(usersRes);
       }
+    }
+  };
+
+  // Open Change Password Modal for Super Admin
+  const handleOpenPassModal = (user) => {
+    setSelectedUserForPass(user);
+    setPassFormData({
+      newPassword: '',
+      confirmPassword: '',
+      logoutAllClients: true,
+    });
+    setShowNewPassModal(false);
+    setShowConfirmPassModal(false);
+    setShowPassModal(true);
+  };
+
+  // Submit Change Password for Target User
+  const handleChangePasswordAdmin = async (e) => {
+    e.preventDefault();
+    if (!selectedUserForPass) return;
+
+    if (!passFormData.newPassword.trim()) {
+      setAlert({ type: 'error', message: 'Vui lòng nhập mật khẩu mới!' });
+      return;
+    }
+    if (passFormData.newPassword.length < 6) {
+      setAlert({ type: 'error', message: 'Mật khẩu mới phải có độ dài tối thiểu 6 ký tự!' });
+      return;
+    }
+    if (passFormData.newPassword !== passFormData.confirmPassword) {
+      setAlert({ type: 'error', message: 'Mật khẩu mới và xác nhận mật khẩu không khớp!' });
+      return;
+    }
+
+    setSubmittingPass(true);
+    const [err, res] = await changePassword({
+      userId: selectedUserForPass.id,
+      newPassword: passFormData.newPassword.trim(),
+      confirmPassword: passFormData.confirmPassword.trim(),
+      logoutAllClients: passFormData.logoutAllClients,
+    });
+    setSubmittingPass(false);
+
+    if (err) {
+      setAlert({ type: 'error', message: `Đổi mật khẩu thất bại: ${err}` });
+    } else {
+      setAlert({
+        type: 'success',
+        message: res?.message || `Đổi mật khẩu cho người dùng '${selectedUserForPass.username}' thành công!`,
+      });
+      setShowPassModal(false);
+      setSelectedUserForPass(null);
+      setPassFormData({ newPassword: '', confirmPassword: '', logoutAllClients: true });
     }
   };
 
@@ -291,6 +359,7 @@ export default function EmployeeManagement() {
                   <th>Email</th>
                   <th>Role Hiện Tại</th>
                   <th>Gán / Điều Chỉnh Role</th>
+                  <th>Hành Động</th>
                   <th>Ngày Khởi Tạo</th>
                 </tr>
               </thead>
@@ -351,6 +420,30 @@ export default function EmployeeManagement() {
                             )}
                           </div>
                         )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenPassModal(user)}
+                          title="Đổi mật khẩu cho người dùng này"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.4rem 0.75rem',
+                            background: '#F5F3FF',
+                            color: '#7C3AED',
+                            border: '1px solid #DDD6FE',
+                            borderRadius: '8px',
+                            fontSize: '0.825rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <KeyRound size={14} />
+                          <span>Đổi Pass</span>
+                        </button>
                       </td>
                       <td style={{ fontSize: '0.825rem', color: '#64748B' }}>
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : 'Ban đầu'}
@@ -489,6 +582,220 @@ export default function EmployeeManagement() {
                   disabled={submitting}
                 >
                   {submitting ? 'Đang khởi tạo...' : 'Tạo Tài Khoản Admin'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Super Admin Change Password for Any User */}
+      {showPassModal && selectedUserForPass && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '480px' }}>
+            <div className="modal-header" style={{ background: '#F5F3FF' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#7C3AED' }}>
+                <KeyRound size={22} />
+                <h3 className="modal-title" style={{ color: '#5B21B6' }}>
+                  Đổi Mật Khẩu Người Dùng
+                </h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowPassModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePasswordAdmin}>
+              <div className="modal-body">
+                {/* Target User Info Header */}
+                <div
+                  style={{
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '10px',
+                      background: '#EDE9FE',
+                      color: '#7C3AED',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                    }}
+                  >
+                    {selectedUserForPass.username ? selectedUserForPass.username.substring(0, 2).toUpperCase() : 'US'}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0F172A' }}>
+                      {selectedUserForPass.fullName || selectedUserForPass.username}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748B' }}>
+                      @{selectedUserForPass.username} • Role: <strong>{selectedUserForPass.roleDisplayName || selectedUserForPass.role}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem', color: '#334155' }}>
+                    Mật khẩu mới <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showNewPassModal ? 'text' : 'password'}
+                      required
+                      placeholder="Mật khẩu mới tối thiểu 6 ký tự..."
+                      value={passFormData.newPassword}
+                      onChange={(e) => setPassFormData({ ...passFormData, newPassword: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 2.5rem 0.65rem 0.85rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '10px',
+                        outline: 'none',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassModal(!showNewPassModal)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748B',
+                      }}
+                    >
+                      {showNewPassModal ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem', color: '#334155' }}>
+                    Nhập lại mật khẩu mới <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPassModal ? 'text' : 'password'}
+                      required
+                      placeholder="Xác nhận mật khẩu mới..."
+                      value={passFormData.confirmPassword}
+                      onChange={(e) => setPassFormData({ ...passFormData, confirmPassword: e.target.value })}
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 2.5rem 0.65rem 0.85rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '10px',
+                        outline: 'none',
+                        fontSize: '0.9rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassModal(!showConfirmPassModal)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748B',
+                      }}
+                    >
+                      {showConfirmPassModal ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Logout All Clients Option */}
+                <div
+                  style={{
+                    background: '#F5F3FF',
+                    border: '1px solid #DDD6FE',
+                    padding: '0.85rem 1rem',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() =>
+                    setPassFormData({
+                      ...passFormData,
+                      logoutAllClients: !passFormData.logoutAllClients,
+                    })
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    id="adminLogoutAll"
+                    checked={passFormData.logoutAllClients}
+                    onChange={(e) =>
+                      setPassFormData({
+                        ...passFormData,
+                        logoutAllClients: e.target.checked,
+                      })
+                    }
+                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#7C3AED' }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <label
+                    htmlFor="adminLogoutAll"
+                    style={{ fontSize: '0.85rem', fontWeight: 600, color: '#5B21B6', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Đăng xuất và vô hiệu hóa tất cả các phiên đăng nhập đang hoạt động của người dùng này
+                  </label>
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  onClick={() => setShowPassModal(false)}
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="modal-btn-save"
+                  style={{ background: '#7C3AED', boxShadow: '0 4px 12px rgba(124, 58, 237, 0.25)' }}
+                  disabled={submittingPass}
+                >
+                  {submittingPass ? (
+                    <>
+                      <RefreshCw size={16} className="spin" />
+                      <span>Đang cập nhật...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={16} />
+                      <span>Cập Nhật Mật Khẩu</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

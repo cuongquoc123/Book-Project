@@ -15,8 +15,12 @@ import {
   Sparkles,
   Info,
   Clock,
+  Eye,
+  EyeOff,
+  Lock,
+  RefreshCw,
 } from 'lucide-react';
-import { getCurrentUser, logoutUser } from '../../services/api';
+import { getCurrentUser, logoutUser, changePassword } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/auth.css';
@@ -28,9 +32,18 @@ export default function UserProfile() {
   const [activeTab, setActiveTab] = useState('info'); // 'info' | 'edit' | 'password'
   const [alert, setAlert] = useState({ type: '', message: '' });
 
-  // Form states for Edit Profile & Change Password demo
+  // Form states for Edit Profile & Change Password
   const [editForm, setEditForm] = useState({ fullName: '', email: '' });
-  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordForm, setPasswordForm] = useState({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+    logoutAllClients: false,
+  });
+  const [showOldPass, setShowOldPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [submittingPassword, setSubmittingPassword] = useState(false);
 
   useEffect(() => {
     async function fetchUserData() {
@@ -82,16 +95,69 @@ export default function UserProfile() {
     });
   };
 
-  const handleChangePasswordNotice = (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
+    setAlert({ type: '', message: '' });
+
+    if (!passwordForm.oldPassword.trim()) {
+      setAlert({ type: 'error', message: 'Vui lòng nhập mật khẩu hiện tại!' });
+      return;
+    }
+    if (!passwordForm.newPassword.trim()) {
+      setAlert({ type: 'error', message: 'Vui lòng nhập mật khẩu mới!' });
+      return;
+    }
+    if (passwordForm.newPassword.length < 6) {
+      setAlert({ type: 'error', message: 'Mật khẩu mới phải có độ dài tối thiểu 6 ký tự!' });
+      return;
+    }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setAlert({ type: 'error', message: 'Mật khẩu mới và nhập lại mật khẩu không khớp!' });
       return;
     }
-    setAlert({
-      type: 'info',
-      message: 'ℹ️ Chức năng đổi mật khẩu chưa được Backend triển khai API (PUT /api/auth/change-password). Bạn cần bổ sung API này ở Backend sau.',
+    if (passwordForm.oldPassword === passwordForm.newPassword) {
+      setAlert({ type: 'error', message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại!' });
+      return;
+    }
+
+    setSubmittingPassword(true);
+    const [err, data] = await changePassword({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword,
+      confirmPassword: passwordForm.confirmPassword,
+      logoutAllClients: passwordForm.logoutAllClients,
     });
+    setSubmittingPassword(false);
+
+    if (err) {
+      setAlert({ type: 'error', message: err });
+    } else {
+      const isLoggedOut = passwordForm.logoutAllClients;
+      setAlert({
+        type: 'success',
+        message: data?.message || (isLoggedOut 
+          ? 'Đổi mật khẩu thành công! Toàn bộ các phiên đăng nhập khác đã được đăng xuất. Đang chuyển hướng...' 
+          : 'Đổi mật khẩu thành công!'),
+      });
+      setPasswordForm({
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+        logoutAllClients: false,
+      });
+
+      if (isLoggedOut) {
+        setTimeout(() => {
+          clearAuth();
+          const userRole = currentUser.role || 'CLIENT';
+          if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+            navigate('/admin/login', { replace: true });
+          } else {
+            navigate('/login', { replace: true });
+          }
+        }, 2000);
+      }
+    }
   };
 
   const isAdmin = currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN';
@@ -505,100 +571,227 @@ export default function UserProfile() {
             <div style={{ padding: '2rem 0' }}>
               <div
                 style={{
-                  background: '#FFFBEB',
-                  border: '1px solid #FDE68A',
-                  padding: '1rem 1.25rem',
-                  borderRadius: '14px',
-                  marginBottom: '1.5rem',
-                  fontSize: '0.875rem',
-                  color: '#92400E',
+                  background: '#ECFDF5',
+                  border: '1px solid #A7F3D0',
+                  padding: '1.25rem',
+                  borderRadius: '16px',
+                  marginBottom: '2rem',
+                  fontSize: '0.9rem',
+                  color: '#065F46',
                   display: 'flex',
                   alignItems: 'flex-start',
-                  gap: '0.6rem',
+                  gap: '0.8rem',
                 }}
               >
-                <Info size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <KeyRound size={24} color="#059669" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <div>
-                  <strong>Ghi chú cho Nhà Phát Triển:</strong> Backend hiện tại chưa có API đổi mật khẩu (ví dụ `PUT /api/auth/change-password`). Bạn có thể tạo thêm API này sau.
+                  <strong style={{ fontSize: '0.95rem' }}>Bảo Mật Tài Khoản:</strong>
+                  <p style={{ margin: '0.3rem 0 0 0', lineHeight: 1.5, opacity: 0.9 }}>
+                    Để bảo đảm an toàn, hãy đặt mật khẩu mới có ít nhất 6 ký tự. Bạn cũng có thể chọn tùy chọn đăng xuất tất cả thiết bị khác để thu hồi toàn bộ phiên đăng nhập cũ ngay lập tức.
+                  </p>
                 </div>
               </div>
 
-              <form onSubmit={handleChangePasswordNotice} style={{ maxWidth: '540px' }}>
+              <form onSubmit={handleChangePassword} style={{ maxWidth: '580px' }}>
+                {/* Mật khẩu hiện tại */}
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.4rem', color: '#334155' }}>
-                    Mật khẩu hiện tại
+                    Mật khẩu hiện tại <span style={{ color: '#EF4444' }}>*</span>
                   </label>
-                  <input
-                    type="password"
-                    value={passwordForm.oldPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '0.7rem 0.9rem',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '10px',
-                      outline: 'none',
-                      fontSize: '0.95rem',
-                    }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showOldPass ? 'text' : 'password'}
+                      required
+                      value={passwordForm.oldPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                      placeholder="Nhập mật khẩu đang sử dụng..."
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 2.75rem 0.75rem 1rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '12px',
+                        outline: 'none',
+                        fontSize: '0.95rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOldPass(!showOldPass)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748B',
+                      }}
+                    >
+                      {showOldPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
+                {/* Mật khẩu mới */}
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.4rem', color: '#334155' }}>
-                    Mật khẩu mới
+                    Mật khẩu mới <span style={{ color: '#EF4444' }}>*</span>
                   </label>
-                  <input
-                    type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '0.7rem 0.9rem',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '10px',
-                      outline: 'none',
-                      fontSize: '0.95rem',
-                    }}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showNewPass ? 'text' : 'password'}
+                      required
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                      placeholder="Mật khẩu mới tối thiểu 6 ký tự..."
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 2.75rem 0.75rem 1rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '12px',
+                        outline: 'none',
+                        fontSize: '0.95rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPass(!showNewPass)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748B',
+                      }}
+                    >
+                      {showNewPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                 </div>
 
+                {/* Xác nhận mật khẩu mới */}
                 <div style={{ marginBottom: '1.5rem' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.4rem', color: '#334155' }}>
-                    Nhập lại mật khẩu mới
+                    Nhập lại mật khẩu mới <span style={{ color: '#EF4444' }}>*</span>
                   </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPass ? 'text' : 'password'}
+                      required
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                      placeholder="Nhập lại mật khẩu mới để xác nhận..."
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 2.75rem 0.75rem 1rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '12px',
+                        outline: 'none',
+                        fontSize: '0.95rem',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPass(!showConfirmPass)}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748B',
+                      }}
+                    >
+                      {showConfirmPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Tùy chọn Logout All Clients */}
+                <div
+                  style={{
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    padding: '1rem 1.25rem',
+                    borderRadius: '14px',
+                    marginBottom: '2rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.85rem',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() =>
+                    setPasswordForm({
+                      ...passwordForm,
+                      logoutAllClients: !passwordForm.logoutAllClients,
+                    })
+                  }
+                >
                   <input
-                    type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                    placeholder="••••••••"
-                    style={{
-                      width: '100%',
-                      padding: '0.7rem 0.9rem',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '10px',
-                      outline: 'none',
-                      fontSize: '0.95rem',
-                    }}
+                    type="checkbox"
+                    id="logoutAllClients"
+                    checked={passwordForm.logoutAllClients}
+                    onChange={(e) =>
+                      setPasswordForm({
+                        ...passwordForm,
+                        logoutAllClients: e.target.checked,
+                      })
+                    }
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#059669' }}
+                    onClick={(e) => e.stopPropagation()}
                   />
+                  <label
+                    htmlFor="logoutAllClients"
+                    style={{ fontSize: '0.9rem', fontWeight: 600, color: '#1E293B', cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Đăng xuất khỏi tất cả các thiết bị khác <span style={{ color: '#059669', fontWeight: 700 }}>(Khuyên dùng)</span>
+                    <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 400, color: '#64748B', marginTop: '2px' }}>
+                      Vô hiệu hóa toàn bộ Access Token & Refresh Token đang hoạt động trên các trình duyệt/thiết bị khác.
+                    </span>
+                  </label>
                 </div>
 
                 <button
                   type="submit"
+                  disabled={submittingPassword}
                   style={{
-                    padding: '0.75rem 1.5rem',
-                    background: '#059669',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.6rem',
+                    width: '100%',
+                    padding: '0.85rem 1.5rem',
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                     color: 'white',
                     border: 'none',
                     borderRadius: '12px',
-                    fontWeight: 700,
-                    fontSize: '0.95rem',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)',
+                    fontWeight: 800,
+                    fontSize: '1rem',
+                    cursor: submittingPassword ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(5, 150, 105, 0.3)',
+                    transition: 'all 0.2s ease',
                   }}
                 >
-                  Đổi Mật Khẩu (Chờ API Backend)
+                  {submittingPassword ? (
+                    <>
+                      <RefreshCw size={18} className="animate-spin" />
+                      <span>Đang cập nhật mật khẩu...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock size={18} />
+                      <span>Cập Nhật Mật Khẩu Mới</span>
+                    </>
+                  )}
                 </button>
               </form>
             </div>
