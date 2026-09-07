@@ -2,6 +2,7 @@ package com.example.bookbe.enums;
 
 public enum PurchaseStatus {
     PENDING,
-    COMPLETED,
-    FAILED
+    BORROWED,  // Đang mượn
+    RETURNED,  // Đã trả
+    CANCELLED  
 }

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ClientLogin from './pages/user/ClientLogin';
 import UserHome from './pages/user/UserHome';
 import UserProfile from './pages/user/UserProfile';
+import UserBorrowHistory from './pages/user/UserBorrowHistory';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/Dashboard';
 import BookManagement from './pages/admin/BookManagement';
@@ -13,6 +14,8 @@ import HomeNavigation from './pages/HomeNavigation';
 import ServerError from './pages/ServerError';
 import ProtectedRoute from './components/ProtectedRoute';
 import './styles/auth.css';
+import ResetPassword from './pages/user/ResetPassword';
+import ForgotPassword from './pages/user/ForgotPassword';
 
 export default function App() {
   return (
@@ -20,12 +23,13 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomeNavigation />} />
         <Route path="/login" element={<ClientLogin />} />
-
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         {/* Protected User Home & Profile Routes */}
         <Route
           path="/home"
           element={
-            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']}>
+            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']} portal="USER">
               <UserHome />
             </ProtectedRoute>
           }
@@ -34,8 +38,17 @@ export default function App() {
         <Route
           path="/profile"
           element={
-            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']}>
+            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']} portal="USER">
               <UserProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-borrows"
+          element={
+            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']} portal="USER">
+              <UserBorrowHistory />
             </ProtectedRoute>
           }
         />
@@ -47,7 +60,7 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN">
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -56,7 +69,7 @@ export default function App() {
         <Route
           path="/admin/books"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} requiredPermPrefix="BOOK_">
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="BOOK_">
               <BookManagement />
             </ProtectedRoute>
           }
@@ -65,7 +78,7 @@ export default function App() {
         <Route
           path="/admin/categories"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} requiredPermPrefix="CATEGORY_">
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="CATEGORY_">
               <CategoryManagement />
             </ProtectedRoute>
           }
@@ -74,7 +87,7 @@ export default function App() {
         <Route
           path="/admin/roles"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} requiredPermPrefix="ROLE_">
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="ROLE_">
               <RoleManagement />
             </ProtectedRoute>
           }
@@ -84,7 +97,7 @@ export default function App() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute allowedRoles={['SUPER_ADMIN']} requireSuperAdmin={true} requiredPermPrefix="USER_">
+            <ProtectedRoute allowedRoles={['SUPER_ADMIN']} portal="ADMIN" requireSuperAdmin={true} requiredPermPrefix="USER_">
               <EmployeeManagement />
             </ProtectedRoute>
           }

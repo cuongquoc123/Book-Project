@@ -66,6 +66,7 @@ export default function BookManagement() {
     description: '',
     coverUrl: '',
     price: '',
+    totalStock: 10,
     categoryId: '',
   });
 
@@ -188,12 +189,9 @@ export default function BookManagement() {
     fetchData(0, pageSize, newSortBy, newSortDir);
   };
 
-  const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
-
   // Helper: Check management permissions according to BE rules
   const canManage = (item) => {
-    if (!item) return false;
-    return isSuperAdmin || currentUser.role === 'ADMIN' || Boolean(currentUser.role);
+    return true; // Cho phép Admin/SuperAdmin chỉnh sửa/xóa mọi cuốn sách trong trang quản trị
   };
 
   // Filtered Book List
@@ -222,7 +220,8 @@ export default function BookManagement() {
         description: book.description || '',
         coverUrl: book.coverUrl || '',
         price: book.price !== null && book.price !== undefined ? book.price : '',
-        categoryId: book.categoryId || (categories[0]?.id ? String(categories[0].id) : ''),
+        totalStock: book.totalStock !== null && book.totalStock !== undefined ? book.totalStock : 10,
+        categoryId: book.categoryId ? String(book.categoryId) : (categories[0]?.id ? String(categories[0].id) : ''),
       });
     } else {
       setBookFormData({
@@ -232,6 +231,7 @@ export default function BookManagement() {
         description: '',
         coverUrl: '',
         price: '',
+        totalStock: 10,
         categoryId: categories[0]?.id ? String(categories[0].id) : '',
       });
     }
@@ -265,6 +265,7 @@ export default function BookManagement() {
       description: '',
       coverUrl: '',
       price: '',
+      totalStock: 10,
       categoryId: '',
     });
     setShowBookModal(false);
@@ -299,6 +300,7 @@ export default function BookManagement() {
       description: bookFormData.description.trim(),
       coverUrl: bookFormData.coverUrl.trim(),
       price: bookFormData.price !== '' ? Number(bookFormData.price) : 0,
+      totalStock: bookFormData.totalStock !== '' ? Number(bookFormData.totalStock) : 10,
       categoryId: Number(bookFormData.categoryId),
     };
 
@@ -514,188 +516,168 @@ export default function BookManagement() {
             </div>
           ) : (
             <>
-              <table className="dash-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Bìa Sách</th>
-                    <th>Tên Sách</th>
-                    <th>Tác Giả</th>
-                    <th>Thể Loại</th>
-                    <th>Giá Bán</th>
-                    <th>Người Tạo</th>
-                    <th>Người Sửa Gần Nhất</th>
-                    <th>Quyền Hạn</th>
-                    <th style={{ textAlign: 'right' }}>Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredBooks.map((book) => {
-                    const manageable = canManage(book);
-                    return (
-                      <tr key={book.id}>
-                        <td style={{ fontWeight: 700, color: '#64748B' }}>#{book.id}</td>
-                        <td>
-                          {book.coverUrl ? (
-                            <img
-                              src={book.coverUrl}
-                              alt={book.title}
-                              style={{
-                                width: '42px',
-                                height: '56px',
-                                objectFit: 'cover',
-                                borderRadius: '6px',
-                                border: '1px solid #E2E8F0',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
-                              }}
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div
-                              style={{
-                                width: '42px',
-                                height: '56px',
-                                borderRadius: '6px',
-                                background: '#F1F5F9',
-                                border: '1px dashed #CBD5E1',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#94A3B8',
-                                fontSize: '0.75rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              No Cover
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 700, color: '#0F172A' }}>{book.title}</div>
-                          {book.description && (
-                            <div
-                              style={{
-                                fontSize: '0.8rem',
-                                color: '#64748B',
-                                maxWidth: '280px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {book.description}
-                            </div>
-                          )}
-                        </td>
-                        <td>{book.author || 'Chưa rõ'}</td>
-                        <td>
-                          <span
-                            style={{
-                              background: '#F1F5F9',
-                              color: '#334155',
-                              padding: '0.2rem 0.6rem',
-                              borderRadius: '6px',
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {book.categoryName || 'Không phân loại'}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="price-pill">
-                            {book.price !== null && book.price !== undefined
-                              ? `${Number(book.price).toLocaleString('vi-VN')} đ`
-                              : 'Miễn phí'}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`owner-pill ${book.createdByName === currentUser.username ? 'self' : 'other'
-                              }`}
-                          >
-                            <User size={12} />
-                            {book.createdByName || 'Hệ thống'}
-                          </span>
-                        </td>
-                        <td>
-                          {book.updatedByName ? (
-                            <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 600 }}>
-                              <span style={{ color: '#4F46E5' }}>{book.updatedByName}</span>
-                              <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
-                                {new Date(book.updatedAt).toLocaleDateString('vi-VN')} {new Date(book.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              <div className="dash-table-scroll">
+                <table className="dash-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Bìa Sách</th>
+                      <th>Tên Sách</th>
+                      <th>Tác Giả</th>
+                      <th>Thể Loại</th>
+                      <th>Giá Bán</th>
+                      <th>Tồn Kho</th>
+                      <th>Người Tạo</th>
+                      <th>Sửa Gần Nhất</th>
+                      <th style={{ textAlign: 'center', minWidth: '110px' }}>Thao Tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredBooks.map((book) => {
+                      const manageable = canManage(book);
+                      return (
+                        <tr key={book.id}>
+                          <td style={{ fontWeight: 700, color: '#64748B' }}>#{book.id}</td>
+                          <td>
+                            {book.coverUrl ? (
+                              <img
+                                src={book.coverUrl}
+                                alt={book.title}
+                                style={{
+                                  width: '42px',
+                                  height: '56px',
+                                  objectFit: 'cover',
+                                  borderRadius: '6px',
+                                  border: '1px solid #E2E8F0',
+                                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
+                                }}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '42px',
+                                  height: '56px',
+                                  borderRadius: '6px',
+                                  background: '#F1F5F9',
+                                  border: '1px dashed #CBD5E1',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: '#94A3B8',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                No Cover
                               </div>
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}>Chưa sửa</span>
-                          )}
-                        </td>
-                        <td>
-                          {manageable ? (
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 700, color: '#0F172A' }}>{book.title}</div>
+                            {book.description && (
+                              <div
+                                style={{
+                                  fontSize: '0.8rem',
+                                  color: '#64748B',
+                                  maxWidth: '240px',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {book.description}
+                              </div>
+                            )}
+                          </td>
+                          <td>{book.author || 'Chưa rõ'}</td>
+                          <td>
                             <span
                               style={{
-                                color: '#059669',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                              }}
-                            >
-                              <CheckCircle2 size={14} /> Có quyền Sửa/Xóa
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                color: '#94A3B8',
+                                background: '#F1F5F9',
+                                color: '#334155',
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '6px',
                                 fontSize: '0.8rem',
                                 fontWeight: 600,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
                               }}
-                              title="Chỉ người tạo hoặc Super Admin mới có quyền chỉnh sửa/xóa"
                             >
-                              <Lock size={14} /> Chỉ xem (Khóa)
+                              {book.categoryName || 'Không phân loại'}
                             </span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <button
-                            type="button"
-                            className="btn-action-icon edit"
-                            disabled={!manageable}
-                            onClick={() => handleOpenBookModal('edit', book)}
-                            title={
-                              manageable
-                                ? 'Chỉnh sửa cuốn sách'
-                                : 'Bạn không có quyền chỉnh sửa sách do người khác tạo'
-                            }
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-action-icon delete"
-                            disabled={!manageable}
-                            onClick={() => handleOpenDeleteModal(book)}
-                            title={
-                              manageable
-                                ? 'Xóa cuốn sách'
-                                : 'Bạn không có quyền xóa sách do người khác tạo'
-                            }
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td>
+                            <span className="price-pill">
+                              {book.price !== null && book.price !== undefined
+                                ? `${Number(book.price).toLocaleString('vi-VN')} đ`
+                                : 'Miễn phí'}
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              style={{
+                                background: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '#ECFDF5' : '#FEF2F2',
+                                color: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '#047857' : '#DC2626',
+                                padding: '0.25rem 0.65rem',
+                                borderRadius: '8px',
+                                fontSize: '0.825rem',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                                border: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '1px solid #A7F3D0' : '1px solid #FCA5A5',
+                              }}
+                            >
+                              {book.availableStock !== undefined ? book.availableStock : (book.totalStock || 10)} / {book.totalStock || 10} cuốn
+                            </span>
+                          </td>
+                          <td>
+                            <span
+                              className={`owner-pill ${book.createdByName === currentUser.username ? 'self' : 'other'
+                                }`}
+                            >
+                              <User size={12} />
+                              {book.createdByName || 'Hệ thống'}
+                            </span>
+                          </td>
+                          <td>
+                            {book.updatedByName ? (
+                              <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 600 }}>
+                                <span style={{ color: '#4F46E5' }}>{book.updatedByName}</span>
+                                <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
+                                  {new Date(book.updatedAt).toLocaleDateString('vi-VN')}
+                                </div>
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}>Chưa sửa</span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <button
+                              type="button"
+                              className="btn-action-icon edit"
+                              disabled={!manageable}
+                              onClick={() => handleOpenBookModal('edit', book)}
+                              title="Chỉnh sửa cuốn sách"
+                            >
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-action-icon delete"
+                              disabled={!manageable}
+                              onClick={() => handleOpenDeleteModal(book)}
+                              title="Xóa cuốn sách"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
               {/* PAGINATION FOOTER BAR */}
               <div
@@ -878,7 +860,7 @@ export default function BookManagement() {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
                   <div>
                     <label
                       style={{
@@ -929,6 +911,38 @@ export default function BookManagement() {
                       value={bookFormData.price}
                       onChange={(e) =>
                         setBookFormData({ ...bookFormData, price: e.target.value })
+                      }
+                      style={{
+                        width: '100%',
+                        padding: '0.65rem 0.85rem',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: '10px',
+                        outline: 'none',
+                        fontSize: '0.9rem',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        marginBottom: '0.4rem',
+                        color: '#334155',
+                      }}
+                    >
+                      Kho (lúc full) <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      placeholder="10"
+                      value={bookFormData.totalStock}
+                      onChange={(e) =>
+                        setBookFormData({ ...bookFormData, totalStock: e.target.value })
                       }
                       style={{
                         width: '100%',
@@ -1092,7 +1106,7 @@ export default function BookManagement() {
                       -- Chọn Loại Sách --
                     </option>
                     {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
+                      <option key={cat.id} value={String(cat.id)}>
                         {cat.name}
                       </option>
                     ))}

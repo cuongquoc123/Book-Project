@@ -3,6 +3,7 @@ package com.example.bookbe.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.example.bookbe.enums.PurchaseStatus;
 
 import jakarta.persistence.Column;
@@ -29,6 +30,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Purchase {
 
     @Id
@@ -37,10 +39,12 @@ public class Purchase {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password"})
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "book_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "createdBy", "updatedBy"})
     private Book book;
 
     @Enumerated(EnumType.STRING)
@@ -56,6 +60,12 @@ public class Purchase {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column (name = "borrowed_at")
+    private  LocalDateTime borrowedAt;
+
+    @Column (name = "returned_at")
+    private  LocalDateTime returnedAt;
 
     @PrePersist
     protected void onCreate() {
@@ -117,10 +127,19 @@ public class Purchase {
         return updatedAt;
     }
 
-    /**
-     * Checks if this purchase transaction is completed, granting read access to the book for the Client.
-     */
-    public boolean isCompleted() {
-        return this.status == PurchaseStatus.COMPLETED;
+    public LocalDateTime getBorrowedAt() {
+        return borrowedAt;
+    }
+
+    public void setBorrowedAt(LocalDateTime borrowedAt) {
+        this.borrowedAt = borrowedAt;
+    }
+
+    public LocalDateTime getReturnedAt() {
+        return returnedAt;
+    }
+
+    public void setReturnedAt(LocalDateTime returnedAt) {
+        this.returnedAt = returnedAt;
     }
 }

@@ -11,6 +11,9 @@ export default function FormInput({
   inputClassName = 'client-input',
   labelStyle = {},
   maxLength,
+  value,
+  onChange,
+  ...rest
 }) {
   return (
     <div className="form-group">
@@ -32,6 +35,9 @@ export default function FormInput({
           placeholder={placeholder}
           required={required}
           maxLength={maxLength}
+          value={value}
+          onChange={onChange}
+          {...rest}
         />
         {rightElement}
       </div>

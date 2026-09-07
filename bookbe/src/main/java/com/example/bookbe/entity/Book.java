@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,6 +26,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Book {
 
     @Id
@@ -63,10 +65,18 @@ public class Book {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "total_stock")
+    private Integer totalStock = 10;
+
+    @Column(name = "available_stock")
+    private Integer availableStock = 10;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+        if (this.totalStock == null) this.totalStock = 10;
+        if (this.availableStock == null) this.availableStock = this.totalStock;
     }
 
     @PreUpdate
@@ -75,6 +85,21 @@ public class Book {
     }
 
     // Explicit getters and setters
+    public Integer getTotalStock() {
+        return totalStock;
+    }
+
+    public void setTotalStock(Integer totalStock) {
+        this.totalStock = totalStock;
+    }
+
+    public Integer getAvailableStock() {
+        return availableStock;
+    }
+
+    public void setAvailableStock(Integer availableStock) {
+        this.availableStock = availableStock;
+    }
     public Long getId() {
         return id;
     }

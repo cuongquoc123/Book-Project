@@ -12,18 +12,24 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.bookbe.dto.AuthRespone;
+import com.example.bookbe.dto.ChangePasswordRequest;
+import com.example.bookbe.dto.ForgotPasswordRequest;
 import com.example.bookbe.dto.GoogleLoginRequest;
 import com.example.bookbe.dto.LoginRequest;
 import com.example.bookbe.dto.RefreshTokenRequest;
 import com.example.bookbe.dto.RegisterRequest;
+import com.example.bookbe.dto.ResetPasswordRequest;
 import com.example.bookbe.dto.TokenRefreshRespone;
 import com.example.bookbe.entity.User;
 import com.example.bookbe.service.AuthService;
 import com.example.bookbe.service.GoogleAuthService;
+
+import jakarta.mail.MessagingException;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,6 +41,7 @@ public class AuthController {
     public AuthController(AuthService authService, GoogleAuthService googleAuthService) {
         this.authService = authService;
         this.googleAuthService = googleAuthService;
+
     }
 
     private boolean isUserAuthenticated() {
@@ -123,5 +130,37 @@ public class AuthController {
         Long roleId = Long.valueOf(roleIdObj.toString());
         Map<String, Object> result = authService.updateUserRole(userId, roleId);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Map<String, Object>> changePassword(
+            @RequestBody ChangePasswordRequest request,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        if (!isUserAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Yêu cầu đăng nhập để đổi mật khẩu!"));
+        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUsername = authentication.getName();
+
+        String currentToken = null;
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
+            currentToken = authorizationHeader.substring(7);
+        }
+
+        Map<String, Object> result = authService.changePassword(request, currentUsername, currentToken);
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) throws MessagingException {
+        authService.processForgotPassword(request.getEmail());
+        return ResponseEntity.ok(Map.of("message", "Đã gửi liên kết đặt lại mật khẩu vào email của bạn!"));
+    }
+    
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        authService.processResetPassword(request.getToken(),request.getNewPassword());
+        return ResponseEntity.ok(Map.of("message","reset password thành công"));
     }
 }

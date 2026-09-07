@@ -73,6 +73,18 @@ export async function logoutUser(refreshToken) {
   return [err, data];
 }
 
+export async function changePassword({ userId, oldPassword, newPassword, confirmPassword, logoutAllClients = false }) {
+  return to(
+    axiosClient.post('/auth/change-password', {
+      userId,
+      oldPassword,
+      newPassword,
+      confirmPassword,
+      logoutAllClients,
+    })
+  );
+}
+
 export async function getCurrentUser() {
   const [err, data] = await to(axiosClient.get('/auth/me'));
   if (!err && data) {
@@ -209,3 +221,33 @@ export async function deleteRole(id) {
 export async function getGroupedPermissions() {
   return to(axiosClient.get('/permissions'));
 }
+export async function forgotPassword(email) {
+  return to(axiosClient.post('/auth/forgot-password', { email }));
+}
+export async function resetPassword({ token, newPassword }) {
+  return to(axiosClient.post('/auth/reset-password', { token, newPassword }));
+}
+
+/* ==========================================
+ * Borrow Book API Enpoints
+ * ========================================== */
+
+export async function borrowBook(bookId) {
+  return to(axiosClient.post(`/borrow/${bookId}`));
+}
+
+export async function returnBook(borrowId) {
+  return to(axiosClient.post(`/borrow/return/${borrowId}`));
+}
+
+export async function getMyBorrow() {
+  return to(axiosClient.get('/borrow/my-borrow'));
+}
+
+export async function getBorrowHistory() {
+  return to(axiosClient.get('/borrow/history'));
+}
+
+export const BorrowBook = borrowBook;
+export const ReturnBook = returnBook;
+export const GetMyBorrow = getMyBorrow;

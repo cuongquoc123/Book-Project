@@ -156,7 +156,7 @@ export default function ClientLogin() {
             <form onSubmit={handleSubmit}>
               {/* Username Input Component */}
               <FormInput
-                label="Tên đăng nhập / Username"
+                label={activeTab === 'login' ? "Tên đăng nhập / Email" : "Tên đăng nhập" } 
                 inputRef={usernameRef}
                 icon={User}
                 placeholder="ví dụ: docgia123"
@@ -207,9 +207,9 @@ export default function ClientLogin() {
                     />
                     Ghi nhớ đăng nhập
                   </label>
-                  <a href="#forgot" onClick={(e) => e.preventDefault()} className="forgot-link">
+                  <Link to="/forgot-password" className="forgot-link">
                     Quên mật khẩu?
-                  </a>
+                  </Link>
                 </div>
               )}
 

@@ -400,10 +400,39 @@
   border-radius: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+}
+
+.dash-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom modern scrollbar for dash-table-scroll */
+.dash-table-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.dash-table-scroll::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+
+.dash-table-scroll::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+.dash-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
 }
 
 .dash-table {
   width: 100%;
+  min-width: 850px;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.9rem;

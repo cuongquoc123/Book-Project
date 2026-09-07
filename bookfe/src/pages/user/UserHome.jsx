@@ -21,8 +21,9 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  BookmarkCheck,
 } from 'lucide-react';
-import { logoutUser, getCurrentUser, getAllBooks, getAllCategories } from '../../services/api';
+import { logoutUser, getCurrentUser, getAllBooks, getAllCategories, borrowBook, returnBook, getMyBorrow } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/auth.css';
@@ -34,6 +35,7 @@ export default function UserHome() {
   // API Data
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [myBorrow, setMyBorrow] = useState(null);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ type: '', message: '' });
 
@@ -98,7 +100,41 @@ export default function UserHome() {
       }
     }
 
+    // Fetch user active borrow info
+    const [borrowErr, borrowData] = await getMyBorrow();
+    if (!borrowErr && borrowData) {
+      setMyBorrow(borrowData);
+    } else {
+      setMyBorrow(null);
+    }
+
     setLoading(false);
+  };
+
+  const handleBorrowBook = async (bookId) => {
+    setLoading(true);
+    const [err, data] = await borrowBook(bookId);
+    setLoading(false);
+    if (err) {
+      setAlert({ type: 'error', message: err });
+    } else {
+      setAlert({ type: 'success', message: 'Mượn sách thành công! Vui lòng đọc và giữ gìn tài liệu cẩn thận.' });
+      if (selectedBook) setSelectedBook(null);
+      fetchData();
+    }
+  };
+
+  const handleReturnBook = async (borrowId) => {
+    setLoading(true);
+    const [err, data] = await returnBook(borrowId);
+    setLoading(false);
+    if (err) {
+      setAlert({ type: 'error', message: err });
+    } else {
+      setAlert({ type: 'success', message: 'Trả sách thành công! Cảm ơn bạn.' });
+      if (selectedBook) setSelectedBook(null);
+      fetchData();
+    }
   };
 
   useEffect(() => {
@@ -271,6 +307,27 @@ export default function UserHome() {
             )}
 
             <Link
+              to="/my-borrows"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.45rem 0.9rem',
+                background: '#FEF3C7',
+                color: '#B45309',
+                borderRadius: '10px',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                textDecoration: 'none',
+                border: '1px solid #FCD34D',
+              }}
+              title="Quản lý sách mượn và xem lịch sử"
+            >
+              <BookmarkCheck size={16} />
+              <span>Sách Mượn & Lịch Sử</span>
+            </Link>
+
+            <Link
               to="/profile"
               style={{
                 display: 'flex',
@@ -332,6 +389,57 @@ export default function UserHome() {
       {/* Main Content */}
       <main style={{ maxWidth: '1280px', width: '100%', margin: '0 auto', padding: '2rem 1.5rem', flex: 1 }}>
         <AlertToast type={alert.type} message={alert.message} />
+
+        {/* Active Borrow Banner */}
+        {myBorrow && myBorrow.book && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+              border: '1px solid #F59E0B',
+              borderRadius: '16px',
+              padding: '1rem 1.5rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <BookOpen size={24} color="#D97706" />
+              <div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#B45309', textTransform: 'uppercase' }}>
+                  📖 Sách bạn đang mượn
+                </div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#78350F' }}>
+                  {myBorrow.book.title} {myBorrow.book.author ? `(Tác giả: ${myBorrow.book.author})` : ''}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => handleReturnBook(myBorrow.id)}
+              disabled={loading}
+              style={{
+                padding: '0.55rem 1.25rem',
+                background: '#D97706',
+                color: 'white',
+                border: 'none',
+                borderRadius: '10px',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Trả Sách Ngay
+            </button>
+          </div>
+        )}
 
         {/* Hero Section */}
         <div
@@ -838,7 +946,7 @@ export default function UserHome() {
                       )}
                     </div>
 
-                    {/* Notice & Access Badge */}
+                    {/* Notice & Stock Badge */}
                     <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.85rem', marginTop: '0.5rem' }}>
                       <div
                         style={{
@@ -848,40 +956,118 @@ export default function UserHome() {
                           marginBottom: '0.85rem',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.4rem',
-                          background: book.hasFullAccess ? '#ECFDF5' : '#F8FAFC',
-                          color: book.hasFullAccess ? '#047857' : '#64748B',
-                          border: book.hasFullAccess ? '1px solid #A7F3D0' : '1px solid #E2E8F0',
+                          justifyContent: 'space-between',
+                          background: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '#ECFDF5' : '#FEF2F2',
+                          color: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '#047857' : '#DC2626',
+                          border: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '1px solid #A7F3D0' : '1px solid #FCA5A5',
                         }}
                       >
-                        {book.hasFullAccess ? <CheckCircle2 size={14} /> : <Info size={14} />}
-                        <span style={{ fontWeight: 600 }}>{book.notice || 'Đăng nhập để đọc cuốn sách này'}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                          <Info size={14} /> Kho:
+                        </span>
+                        <strong style={{ fontWeight: 800 }}>
+                          Còn {book.availableStock !== undefined ? book.availableStock : (book.totalStock || 10)}/{book.totalStock || 10} cuốn
+                        </strong>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setSelectedBook(book)}
-                        style={{
-                          width: '100%',
-                          padding: '0.65rem',
-                          background: '#10B981',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '10px',
-                          fontWeight: 700,
-                          fontSize: '0.875rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '0.4rem',
-                          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)',
-                          transition: 'all 0.2s ease',
-                        }}
-                      >
-                        <Eye size={16} />
-                        <span>Xem Chi Tiết & Đọc Sách</span>
-                      </button>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedBook(book)}
+                          style={{
+                            padding: '0.6rem',
+                            background: '#F1F5F9',
+                            color: '#334155',
+                            border: '1px solid #CBD5E1',
+                            borderRadius: '10px',
+                            fontWeight: 700,
+                            fontSize: '0.825rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.3rem',
+                          }}
+                        >
+                          <Eye size={15} />
+                          <span>Chi tiết</span>
+                        </button>
+
+                        {myBorrow && myBorrow.book?.id === book.id ? (
+                          <button
+                            type="button"
+                            onClick={() => handleReturnBook(myBorrow.id)}
+                            disabled={loading}
+                            style={{
+                              padding: '0.6rem',
+                              background: '#D97706',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '10px',
+                              fontWeight: 700,
+                              fontSize: '0.825rem',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
+                            }}
+                          >
+                            Trả Sách
+                          </button>
+                        ) : myBorrow ? (
+                          <button
+                            type="button"
+                            disabled
+                            title="Bạn chỉ được mượn 1 cuốn sách tại một thời điểm. Vui lòng trả cuốn hiện tại trước!"
+                            style={{
+                              padding: '0.6rem',
+                              background: '#E2E8F0',
+                              color: '#94A3B8',
+                              border: 'none',
+                              borderRadius: '10px',
+                              fontWeight: 700,
+                              fontSize: '0.825rem',
+                              cursor: 'not-allowed',
+                            }}
+                          >
+                            Đang mượn khác
+                          </button>
+                        ) : (book.availableStock !== undefined ? book.availableStock : 10) <= 0 ? (
+                          <button
+                            type="button"
+                            disabled
+                            style={{
+                              padding: '0.6rem',
+                              background: '#FEF2F2',
+                              color: '#FCA5A5',
+                              border: '1px solid #FCA5A5',
+                              borderRadius: '10px',
+                              fontWeight: 700,
+                              fontSize: '0.825rem',
+                              cursor: 'not-allowed',
+                            }}
+                          >
+                            Hết Sách
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleBorrowBook(book.id)}
+                            disabled={loading}
+                            style={{
+                              padding: '0.6rem',
+                              background: '#10B981',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '10px',
+                              fontWeight: 700,
+                              fontSize: '0.825rem',
+                              cursor: 'pointer',
+                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                            }}
+                          >
+                            Mượn Sách
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1172,17 +1358,46 @@ export default function UserHome() {
               >
                 Đóng
               </button>
-              <button
-                type="button"
-                className="modal-btn-save"
-                style={{ background: '#10B981', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}
-                onClick={() => {
-                  alert(`Đang mở giao diện đọc trực tuyến cuốn sách: "${selectedBook.title}"`);
-                  setSelectedBook(null);
-                }}
-              >
-                Bắt Đầu Đọc Sách
-              </button>
+
+              {myBorrow && myBorrow.book?.id === selectedBook.id ? (
+                <button
+                  type="button"
+                  className="modal-btn-save"
+                  style={{ background: '#D97706', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.25)' }}
+                  onClick={() => handleReturnBook(myBorrow.id)}
+                  disabled={loading}
+                >
+                  Trả Sách
+                </button>
+              ) : myBorrow ? (
+                <button
+                  type="button"
+                  className="modal-btn-save"
+                  disabled
+                  style={{ background: '#CBD5E1', color: '#64748B', cursor: 'not-allowed', boxShadow: 'none' }}
+                >
+                  Đang Mượn Cuốn Khác
+                </button>
+              ) : (selectedBook.availableStock !== undefined ? selectedBook.availableStock : 10) <= 0 ? (
+                <button
+                  type="button"
+                  className="modal-btn-save"
+                  disabled
+                  style={{ background: '#FEF2F2', color: '#FCA5A5', border: '1px solid #FCA5A5', cursor: 'not-allowed', boxShadow: 'none' }}
+                >
+                  Sách Đã Hết Kho
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="modal-btn-save"
+                  style={{ background: '#10B981', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}
+                  onClick={() => handleBorrowBook(selectedBook.id)}
+                  disabled={loading}
+                >
+                  Mượn Cuốn Sách Này
+                </button>
+              )}
             </div>
           </div>
         </div>

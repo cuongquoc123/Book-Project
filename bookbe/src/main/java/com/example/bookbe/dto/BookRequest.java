@@ -18,4 +18,5 @@ public class BookRequest {
     private String coverUrl;
     private BigDecimal price;
     private Long categoryId;
+    private Integer totalStock;
 }

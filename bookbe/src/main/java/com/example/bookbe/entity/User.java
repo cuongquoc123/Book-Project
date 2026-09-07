@@ -18,12 +18,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 @Entity
 @Table(name = "users")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "password"})
 public class User {
 
     @Id
@@ -45,6 +48,9 @@ public class User {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id")
     private RoleEntity role;
+
+    @Column(name = "token_invalid_before")
+    private LocalDateTime tokenInvalidBefore;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -110,6 +116,14 @@ public class User {
 
     public void setRole(RoleEntity role) {
         this.role = role;
+    }
+
+    public LocalDateTime getTokenInvalidBefore() {
+        return tokenInvalidBefore;
+    }
+
+    public void setTokenInvalidBefore(LocalDateTime tokenInvalidBefore) {
+        this.tokenInvalidBefore = tokenInvalidBefore;
     }
 
     public LocalDateTime getCreatedAt() {

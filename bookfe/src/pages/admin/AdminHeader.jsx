@@ -93,7 +93,12 @@ export default function AdminHeader({ currentUser }) {
         </nav>
 
         <div className="dash-user-section">
-          <div className="dash-user-badge">
+          <NavLink
+            to="/profile"
+            className="dash-user-badge"
+            title="Xem hồ sơ & Đổi mật khẩu"
+            style={{ textDecoration: 'none', cursor: 'pointer' }}
+          >
             <User size={16} color="#4F46E5" />
             <span style={{ fontWeight: 600, fontSize: '0.875rem', color: '#0F172A' }}>
               {user.username || 'Admin'}
@@ -101,7 +106,7 @@ export default function AdminHeader({ currentUser }) {
             <span className={`role-tag ${isSuperAdmin ? 'super-admin' : 'admin'}`}>
               {user.roleDisplayName || user.role || (isSuperAdmin ? 'SUPER ADMIN' : 'ADMIN')}
             </span>
-          </div>
+          </NavLink>
 
           <button type="button" onClick={handleLogout} className="dash-btn-logout">
             <LogOut size={16} />
