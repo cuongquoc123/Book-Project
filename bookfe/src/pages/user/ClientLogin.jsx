@@ -156,7 +156,7 @@ export default function ClientLogin() {
             <form onSubmit={handleSubmit}>
               {/* Username Input Component */}
               <FormInput
-                label="Tên đăng nhập / Username"
+                label={activeTab === 'login' ? "Tên đăng nhập / Email" : "Tên đăng nhập" } 
                 inputRef={usernameRef}
                 icon={User}
                 placeholder="ví dụ: docgia123"

@@ -27,10 +27,13 @@ import com.example.bookbe.exception.RefreshTokenException;
 import com.example.bookbe.repository.RoleRepository;
 import com.example.bookbe.repository.UserRepository;
 import com.example.bookbe.utils.JwtTokenProvider;
-import org.springframework.beans.factory.annotation.Value;
+
+
 import jakarta.mail.MessagingException;
 
 import java.time.LocalDateTime;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 
 @Service
@@ -116,12 +119,14 @@ public class AuthService {
     }
 
     public AuthRespone login(LoginRequest request) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword()));
+        
 
         User user = userRepository.findByUsername(request.getUsername())
+                .or(() -> userRepository.findByEmail(request.getUsername()))
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại!"));
 
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword()));
         String roleStr = user.getRole() != null ? user.getRole().getName() : "CLIENT";
         String roleDisplayName = user.getRole() != null ? user.getRole().getDisplayName() : roleStr;
         boolean canAccessAdmin = user.getRole() != null ? user.getRole().isCanAccessAdmin() : true;
