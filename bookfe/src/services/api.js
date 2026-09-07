@@ -227,3 +227,27 @@ export async function forgotPassword(email) {
 export async function resetPassword({ token, newPassword }) {
   return to(axiosClient.post('/auth/reset-password', { token, newPassword }));
 }
+
+/* ==========================================
+ * Borrow Book API Enpoints
+ * ========================================== */
+
+export async function borrowBook(bookId) {
+  return to(axiosClient.post(`/borrow/${bookId}`));
+}
+
+export async function returnBook(borrowId) {
+  return to(axiosClient.post(`/borrow/return/${borrowId}`));
+}
+
+export async function getMyBorrow() {
+  return to(axiosClient.get('/borrow/my-borrow'));
+}
+
+export async function getBorrowHistory() {
+  return to(axiosClient.get('/borrow/history'));
+}
+
+export const BorrowBook = borrowBook;
+export const ReturnBook = returnBook;
+export const GetMyBorrow = getMyBorrow;

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ClientLogin from './pages/user/ClientLogin';
 import UserHome from './pages/user/UserHome';
 import UserProfile from './pages/user/UserProfile';
+import UserBorrowHistory from './pages/user/UserBorrowHistory';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/Dashboard';
 import BookManagement from './pages/admin/BookManagement';
@@ -39,6 +40,15 @@ export default function App() {
           element={
             <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']} portal="USER">
               <UserProfile />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/my-borrows"
+          element={
+            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']} portal="USER">
+              <UserBorrowHistory />
             </ProtectedRoute>
           }
         />

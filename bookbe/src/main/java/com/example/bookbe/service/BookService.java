@@ -1,5 +1,7 @@
 package com.example.bookbe.service;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
@@ -10,6 +12,7 @@ import com.example.bookbe.dto.BookRequest;
 import com.example.bookbe.dto.BookResponse;
 import com.example.bookbe.entity.Book;
 import com.example.bookbe.entity.Category;
+import com.example.bookbe.entity.Purchase;
 import com.example.bookbe.entity.User;
 import com.example.bookbe.enums.PurchaseStatus;
 import com.example.bookbe.exception.ResourceNotFoundException;
@@ -46,6 +49,8 @@ public class BookService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Không tìm thấy loại sách với ID: " + request.getCategoryId()));
 
+        Integer stock = request.getTotalStock() != null && request.getTotalStock() >= 0 ? request.getTotalStock() : 10;
+
         Book book = Book.builder()
                 .title(request.getTitle().trim())
                 .author(request.getAuthor())
@@ -54,6 +59,8 @@ public class BookService {
                 .price(request.getPrice())
                 .category(category)
                 .createdBy(currentUser)
+                .totalStock(stock)
+                .availableStock(stock)
                 .build();
 
         Book savedBook = bookRepository.save(book);
@@ -104,7 +111,21 @@ public class BookService {
                             "Không tìm thấy loại sách với ID: " + request.getCategoryId()));
             book.setCategory(category);
         }
+        if (request.getTotalStock() != null && request.getTotalStock() >= 0) {
+            int currentTotal = book.getTotalStock() != null ? book.getTotalStock() : 10;
+            int currentAvail = book.getAvailableStock() != null ? book.getAvailableStock() : currentTotal;
+            int currentlyBorrowed = Math.max(0, currentTotal - currentAvail);
 
+            if (request.getTotalStock() < currentlyBorrowed) {
+                throw new IllegalArgumentException(
+                    "Không thể giảm tổng số lượng xuống " + request.getTotalStock() + 
+                    " cuốn vì hiện tại đang có " + currentlyBorrowed + " cuốn sách đang được độc giả mượn!");
+            }
+
+            int diff = request.getTotalStock() - currentTotal;
+            book.setTotalStock(request.getTotalStock());
+            book.setAvailableStock(Math.max(0, currentAvail + diff));
+        }
         book.setUpdatedBy(currentUser);
 
         Book updatedBook = bookRepository.save(book);
@@ -121,6 +142,9 @@ public class BookService {
             throw new AccessDeniedException("Bạn không có quyền xóa sách này!");
         }
 
+        // Xóa các bản ghi mượn/mua liên quan đến sách trước để tránh lỗi Foreign Key
+        purchaseRepository.deleteByBookId(id);
+
         bookRepository.delete(book);
     }
 
@@ -130,7 +154,7 @@ public class BookService {
 
         boolean isPurchased = false;
         boolean hasFullAccess = false;
-        String notice = "Bạn cần mua sách này để đọc toàn bộ nội dung.";
+        String notice = "Bạn cần mượn sách này để đọc toàn bộ nội dung.";
 
         if (currentUser != null) {
             // Super Admin or Admin who created the book or has manage permission
@@ -141,17 +165,31 @@ public class BookService {
             } else {
                 // Client user check purchase status
                 isPurchased = purchaseRepository.existsByUserIdAndBookIdAndStatus(
-                        currentUser.getId(), book.getId(), PurchaseStatus.COMPLETED);
+                        currentUser.getId(), book.getId(), PurchaseStatus.BORROWED);
 
                 if (isPurchased) {
                     hasFullAccess = true;
-                    notice = "Đã mua - Bạn có quyền đọc toàn bộ nội dung cuốn sách này.";
+                    notice = "Đang mượn - Bạn có quyền đọc toàn bộ nội dung cuốn sách này.";
                 } else {
                     hasFullAccess = false;
-                    notice = "Xem trước giới thiệu - Bạn cần mua cuốn sách này để đọc toàn bộ nội dung.";
+                    notice = "Xem trước giới thiệu - Bạn cần mượn cuốn sách này để đọc toàn bộ nội dung.";
                 }
             }
         }
+
+        Long activeBorrowId = null;
+        if (currentUser != null) {
+            Optional<Purchase> activeBorrow = purchaseRepository.findByUserIdAndBookIdAndStatus(
+                    currentUser.getId(), book.getId(), PurchaseStatus.BORROWED);
+            if (activeBorrow.isPresent()) {
+                isPurchased = true; // Coi như có quyền đọc
+                activeBorrowId = activeBorrow.get().getId();
+                notice = "Bạn đang mượn cuốn sách này.";
+            }
+        }
+
+        Integer totalStock = book.getTotalStock() != null ? book.getTotalStock() : 10;
+        Integer availableStock = book.getAvailableStock() != null ? book.getAvailableStock() : totalStock;
 
         return BookResponse.builder()
                 .id(book.getId())
@@ -169,6 +207,9 @@ public class BookService {
                 .createdAt(book.getCreatedAt())
                 .updatedAt(book.getUpdatedAt())
                 .isPurchased(isPurchased)
+                .totalStock(totalStock)
+                .availableStock(availableStock)
+                .activeBorrowId(activeBorrowId)
                 .hasFullAccess(hasFullAccess)
                 .notice(notice)
                 .build();

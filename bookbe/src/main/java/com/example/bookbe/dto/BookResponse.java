@@ -36,6 +36,10 @@ public class BookResponse {
     private boolean hasFullAccess;
     private String notice;
 
+    private Integer totalStock;
+    private Integer availableStock;
+    private Long activeBorrowId;
+
     public Long getId() {
         return id;
     }
@@ -170,5 +174,29 @@ public class BookResponse {
 
     public void setNotice(String notice) {
         this.notice = notice;
+    }
+
+    public Integer getTotalStock() {
+        return totalStock;
+    }
+
+    public void setTotalStock(Integer totalStock) {
+        this.totalStock = totalStock;
+    }
+
+    public Integer getAvailableStock() {
+        return availableStock;
+    }
+
+    public void setAvailableStock(Integer availableStock) {
+        this.availableStock = availableStock;
+    }
+
+    public Long getActiveBorrowId() {
+        return activeBorrowId;
+    }
+
+    public void setActiveBorrowId(Long activeBorrowId) {
+        this.activeBorrowId = activeBorrowId;
     }
 }

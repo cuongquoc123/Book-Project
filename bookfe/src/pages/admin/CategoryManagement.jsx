@@ -372,113 +372,115 @@ export default function CategoryManagement() {
             </div>
           ) : (
             <>
-              <table className="dash-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Tên Loại Sách</th>
-                    <th>Mô Tả</th>
-                    <th>Người Tạo</th>
-                    <th>Người Sửa Gần Nhất</th>
-                    <th>Quyền Hạn</th>
-                    <th style={{ textAlign: 'right' }}>Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCategories.map((cat) => {
-                    const manageable = canManage(cat);
-                    return (
-                      <tr key={cat.id}>
-                        <td style={{ fontWeight: 700, color: '#64748B' }}>#{cat.id}</td>
-                        <td style={{ fontWeight: 700, color: '#0F172A' }}>{cat.name}</td>
-                        <td style={{ color: '#64748B', maxWidth: '320px' }}>
-                          {cat.description || 'Chưa có mô tả'}
-                        </td>
-                        <td>
-                          <span
-                            className={`owner-pill ${
-                              cat.createdByName === currentUser.username ? 'self' : 'other'
-                            }`}
-                          >
-                            <User size={12} />
-                            {cat.createdByName || 'Hệ thống'}
-                          </span>
-                        </td>
-                        <td>
-                          {cat.updatedByName ? (
-                            <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 600 }}>
-                              <span style={{ color: '#4F46E5' }}>{cat.updatedByName}</span>
-                              <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
-                                {new Date(cat.updatedAt).toLocaleDateString('vi-VN')} {new Date(cat.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+              <div className="dash-table-scroll">
+                <table className="dash-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Tên Loại Sách</th>
+                      <th>Mô Tả</th>
+                      <th>Người Tạo</th>
+                      <th>Người Sửa Gần Nhất</th>
+                      <th>Quyền Hạn</th>
+                      <th style={{ textAlign: 'right' }}>Thao Tác</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredCategories.map((cat) => {
+                      const manageable = canManage(cat);
+                      return (
+                        <tr key={cat.id}>
+                          <td style={{ fontWeight: 700, color: '#64748B' }}>#{cat.id}</td>
+                          <td style={{ fontWeight: 700, color: '#0F172A' }}>{cat.name}</td>
+                          <td style={{ color: '#64748B', maxWidth: '320px' }}>
+                            {cat.description || 'Chưa có mô tả'}
+                          </td>
+                          <td>
+                            <span
+                              className={`owner-pill ${
+                                cat.createdByName === currentUser.username ? 'self' : 'other'
+                              }`}
+                            >
+                              <User size={12} />
+                              {cat.createdByName || 'Hệ thống'}
+                            </span>
+                          </td>
+                          <td>
+                            {cat.updatedByName ? (
+                              <div style={{ fontSize: '0.825rem', color: '#475569', fontWeight: 600 }}>
+                                <span style={{ color: '#4F46E5' }}>{cat.updatedByName}</span>
+                                <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 500 }}>
+                                  {new Date(cat.updatedAt).toLocaleDateString('vi-VN')} {new Date(cat.updatedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
                               </div>
-                            </div>
-                          ) : (
-                            <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}>Chưa sửa</span>
-                          )}
-                        </td>
-                        <td>
-                          {manageable ? (
-                            <span
-                              style={{
-                                color: '#059669',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                              }}
+                            ) : (
+                              <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}>Chưa sửa</span>
+                            )}
+                          </td>
+                          <td>
+                            {manageable ? (
+                              <span
+                                style={{
+                                  color: '#059669',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                              >
+                                <CheckCircle2 size={14} /> Có quyền Sửa/Xóa
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  color: '#94A3B8',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                }}
+                                title="Chỉ người tạo hoặc Super Admin mới có quyền chỉnh sửa/xóa"
+                              >
+                                <Lock size={14} /> Chỉ xem (Khóa)
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <button
+                              type="button"
+                              className="btn-action-icon edit"
+                              disabled={!manageable}
+                              onClick={() => handleOpenCatModal('edit', cat)}
+                              title={
+                                manageable
+                                  ? 'Chỉnh sửa loại sách'
+                                  : 'Bạn không có quyền chỉnh sửa loại sách do người khác tạo'
+                              }
                             >
-                              <CheckCircle2 size={14} /> Có quyền Sửa/Xóa
-                            </span>
-                          ) : (
-                            <span
-                              style={{
-                                color: '#94A3B8',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                              }}
-                              title="Chỉ người tạo hoặc Super Admin mới có quyền chỉnh sửa/xóa"
+                              <Edit2 size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-action-icon delete"
+                              disabled={!manageable}
+                              onClick={() => handleOpenDeleteModal(cat)}
+                              title={
+                                manageable
+                                  ? 'Xóa loại sách'
+                                  : 'Bạn không có quyền xóa loại sách do người khác tạo'
+                              }
                             >
-                              <Lock size={14} /> Chỉ xem (Khóa)
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          <button
-                            type="button"
-                            className="btn-action-icon edit"
-                            disabled={!manageable}
-                            onClick={() => handleOpenCatModal('edit', cat)}
-                            title={
-                              manageable
-                                ? 'Chỉnh sửa loại sách'
-                                : 'Bạn không có quyền chỉnh sửa loại sách do người khác tạo'
-                            }
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-action-icon delete"
-                            disabled={!manageable}
-                            onClick={() => handleOpenDeleteModal(cat)}
-                            title={
-                              manageable
-                                ? 'Xóa loại sách'
-                                : 'Bạn không có quyền xóa loại sách do người khác tạo'
-                            }
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
               {/* PAGINATION FOOTER BAR */}
               <div

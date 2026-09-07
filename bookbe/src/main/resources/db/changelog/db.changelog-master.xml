@@ -157,5 +157,28 @@
         </addColumn>
     </changeSet>
 
-</databaseChangeLog>
+    <changeSet id="20260907-09-add-borrow-fields-and-book-stock" author="bookbe">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="purchases" columnName="borrowed_at"/>
+            </not>
+        </preConditions>
+        <addColumn tableName="purchases">
+            <column name="borrowed_at" type="DATETIME"/>
+            <column name="returned_at" type="DATETIME"/>
+        </addColumn>
+        <addColumn tableName="books">
+            <column name="total_stock" type="INT" defaultValueNumeric="10">
+                <constraints nullable="false"/>
+            </column>
+            <column name="available_stock" type="INT" defaultValueNumeric="10">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
 
+    <changeSet id="20260907-10-modify-purchase-status-column-type" author="bookbe">
+        <modifyDataType tableName="purchases" columnName="status" newDataType="VARCHAR(50)"/>
+    </changeSet>
+
+</databaseChangeLog>
