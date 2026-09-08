@@ -11,8 +11,10 @@ import {
   Crown,
   User,
   Users,
+  BookmarkCheck,
+  Clock,
 } from 'lucide-react';
-import { getCurrentUser, getAllCategories, getAllBooks } from '../../services/api';
+import { getCurrentUser, getAllCategories, getAllBooks, getAllBorrowsForAdmin } from '../../services/api';
 import { getUser, hasResourcePermission, setAuthData } from '../../utils/auth';
 import AdminHeader from './AdminHeader';
 import AlertToast from '../../components/AlertToast';
@@ -23,6 +25,7 @@ export default function Dashboard() {
   const [categories, setCategories] = useState([]);
   const [books, setBooks] = useState([]);
   const [totalBooks, setTotalBooks] = useState(0);
+  const [borrows, setBorrows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ type: '', message: '' });
 
@@ -64,6 +67,11 @@ export default function Dashboard() {
       setTotalBooks(bookRes.totalElements !== undefined ? bookRes.totalElements : list.length);
     }
 
+    const [borrowErr, borrowRes] = await getAllBorrowsForAdmin();
+    if (!borrowErr && Array.isArray(borrowRes)) {
+      setBorrows(borrowRes);
+    }
+
     setLoading(false);
   };
 
@@ -78,6 +86,10 @@ export default function Dashboard() {
   const canManageCategories = useMemo(() => hasResourcePermission(currentUser, 'CATEGORY'), [currentUser]);
   const canManageRoles = useMemo(() => hasResourcePermission(currentUser, 'ROLE'), [currentUser]);
   const canManageUsers = useMemo(() => isSuperAdmin || hasResourcePermission(currentUser, 'USER'), [currentUser, isSuperAdmin]);
+  const canManageBorrows = useMemo(() => isSuperAdmin || currentUser.role === 'ADMIN' || hasResourcePermission(currentUser, 'BOOK') || hasResourcePermission(currentUser, 'PURCHASE'), [currentUser, isSuperAdmin]);
+
+  const pendingBorrowsCount = useMemo(() => borrows.filter((b) => b.status === 'PENDING').length, [borrows]);
+  const activeBorrowsCount = useMemo(() => borrows.filter((b) => b.status === 'BORROWED').length, [borrows]);
 
   return (
     <div className="dash-container">
@@ -135,6 +147,20 @@ export default function Dashboard() {
             </Link>
           )}
 
+          {canManageBorrows && (
+            <Link to="/admin/borrows" className="metric-card" style={{ borderLeft: pendingBorrowsCount > 0 ? '4px solid #F59E0B' : '1px solid #E2E8F0' }}>
+              <div className="metric-icon-wrap" style={{ background: '#FEF3C7', color: '#D97706' }}>
+                <BookmarkCheck size={26} />
+              </div>
+              <div>
+                <div className="metric-val" style={{ color: pendingBorrowsCount > 0 ? '#D97706' : '#0F172A' }}>
+                  {activeBorrowsCount} <span style={{ fontSize: '0.9rem', color: '#64748B', fontWeight: 500 }}>({pendingBorrowsCount} chờ duyệt)</span>
+                </div>
+                <div className="metric-lbl">Quản Lý Mượn Sách (Xem chi tiết →)</div>
+              </div>
+            </Link>
+          )}
+
           {canManageRoles && (
             <Link to="/admin/roles" className="metric-card">
               <div className="metric-icon-wrap" style={{ background: '#F0F9FF', color: '#0284C7' }}>
@@ -146,18 +172,6 @@ export default function Dashboard() {
               </div>
             </Link>
           )}
-
-          <div className="metric-card">
-            <div className="metric-icon-wrap" style={{ background: '#F5F3FF', color: '#7C3AED' }}>
-              <Sparkles size={26} />
-            </div>
-            <div>
-              <div className="metric-val" style={{ fontSize: '1.1rem' }}>
-                {currentUser.roleDisplayName || currentUser.role || 'ROLE'}
-              </div>
-              <div className="metric-lbl">Vai trò phân quyền hiện tại</div>
-            </div>
-          </div>
         </div>
 
         {/* Navigation Feature Portals */}
@@ -212,6 +226,29 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Card: Borrow Management */}
+          {canManageBorrows && (
+            <div className="feature-card">
+              <div>
+                <div className="feature-icon-box" style={{ background: '#FEF3C7', color: '#D97706' }}>
+                  <BookmarkCheck size={30} />
+                </div>
+                <h3 className="feature-card-title">Quản Lý Mượn Sách & Phê Duyệt</h3>
+                <p className="feature-card-desc">
+                  Xem độc giả nào đang mượn sách, hạn trả, phê duyệt hoặc từ chối các yêu cầu mượn sách mới và xác nhận thu hồi sách.
+                </p>
+              </div>
+              <Link
+                to="/admin/borrows"
+                className="feature-card-btn"
+                style={{ background: '#D97706', color: 'white' }}
+              >
+                <span>Quản Lý Mượn Sách ({borrows.length})</span>
+                <ArrowRight size={18} />
+              </Link>
+            </div>
+          )}
+
           {/* Card 3: Role Management */}
           {canManageRoles && (
             <div className="feature-card">
@@ -258,6 +295,7 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
 
         {/* Quick Recent Activity / Data Summary */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', marginTop: '1rem' }}>

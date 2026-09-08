@@ -67,6 +67,10 @@ export async function updateUserRole(userId, roleId) {
   return to(axiosClient.put(`/auth/users/${userId}/role`, { roleId }));
 }
 
+export async function updateUserStatus(userId, enabled) {
+  return to(axiosClient.put(`/auth/users/${userId}/status`, { enabled }));
+}
+
 export async function logoutUser(refreshToken) {
   const [err, data] = await to(axiosClient.post('/auth/logout', { refreshToken }));
   clearAuth();
@@ -229,15 +233,28 @@ export async function resetPassword({ token, newPassword }) {
 }
 
 /* ==========================================
- * Borrow Book API Enpoints
+ * Borrow Book API Endpoints
  * ========================================== */
 
-export async function borrowBook(bookId) {
-  return to(axiosClient.post(`/borrow/${bookId}`));
+export async function borrowBook(bookId, payload = {}) {
+  const { dueDate, note } = payload;
+  return to(axiosClient.post(`/borrow/${bookId}`, { dueDate, note }));
 }
 
 export async function returnBook(borrowId) {
   return to(axiosClient.post(`/borrow/return/${borrowId}`));
+}
+
+export async function approveBorrow(borrowId) {
+  return to(axiosClient.post(`/borrow/approve/${borrowId}`));
+}
+
+export async function rejectBorrow(borrowId) {
+  return to(axiosClient.post(`/borrow/reject/${borrowId}`));
+}
+
+export async function getAllBorrowsForAdmin() {
+  return to(axiosClient.get('/borrow/admin/all'));
 }
 
 export async function getMyBorrow() {

@@ -67,6 +67,12 @@ public class Purchase {
     @Column (name = "returned_at")
     private  LocalDateTime returnedAt;
 
+    @Column (name = "due_date")
+    private java.time.LocalDate dueDate;
+
+    @Column (name = "note")
+    private String note;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -142,4 +148,21 @@ public class Purchase {
     public void setReturnedAt(LocalDateTime returnedAt) {
         this.returnedAt = returnedAt;
     }
+
+    public java.time.LocalDate getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(java.time.LocalDate dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
 }
+

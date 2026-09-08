@@ -221,4 +221,16 @@
             <where>enabled = true</where>
         </update>
     </changeSet>
+
+    <changeSet id="20260908-13-add-due-date-to-purchases" author="bookbe">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="purchases" columnName="due_date" />
+            </not>
+        </preConditions>
+        <addColumn tableName="purchases">
+            <column name="due_date" type="DATE" />
+            <column name="note" type="VARCHAR(500)" />
+        </addColumn>
+    </changeSet>
 </databaseChangeLog>

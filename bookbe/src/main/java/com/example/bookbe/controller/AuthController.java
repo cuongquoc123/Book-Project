@@ -114,7 +114,7 @@ public class AuthController {
     }
 
     @GetMapping("/users")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasAuthority('USER_READ') or hasRole('SUPER_ADMIN')")
     public ResponseEntity<java.util.List<Map<String, Object>>> getAllUsers() {
         java.util.List<Map<String, Object>> users = authService.getAllUsers();
         return ResponseEntity.ok(users);
@@ -129,6 +129,18 @@ public class AuthController {
         }
         Long roleId = Long.valueOf(roleIdObj.toString());
         Map<String, Object> result = authService.updateUserRole(userId, roleId);
+        return ResponseEntity.ok(result);
+    }
+
+    @PutMapping("/users/{userId}/status")
+    @PreAuthorize("hasAuthority('USER_UPDATE') or hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Map<String, Object>> updateUserStatus(@PathVariable Long userId, @RequestBody Map<String, Object> payload) {
+        Object enabledObj = payload.get("enabled");
+        if (enabledObj == null) {
+            throw new IllegalArgumentException("Vui lòng cung cấp trạng thái enabled hợp lệ!");
+        }
+        boolean enabled = Boolean.parseBoolean(enabledObj.toString());
+        Map<String, Object> result = authService.updateUserStatus(userId, enabled);
         return ResponseEntity.ok(result);
     }
 

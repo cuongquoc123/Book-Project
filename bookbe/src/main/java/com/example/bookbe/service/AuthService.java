@@ -254,6 +254,8 @@ public class AuthService {
             map.put("roleDisplayName", user.getRole() != null ? user.getRole().getDisplayName() : null);
             map.put("canAccessAdmin", user.getRole() != null ? user.getRole().isCanAccessAdmin() : true);
             map.put("canAccessUser", user.getRole() != null ? user.getRole().isCanAccessUser() : true);
+            map.put("enabled", user.isEnabled());
+            map.put("emailVerified", user.isEmailVerified());
             map.put("createdAt", user.getCreatedAt());
             return map;
         }).collect(Collectors.toList());
@@ -280,6 +282,35 @@ public class AuthService {
         res.put("roleId", role.getId());
         res.put("roleName", role.getName());
         res.put("roleDisplayName", role.getDisplayName());
+        return res;
+    }
+
+    @Transactional
+    public Map<String, Object> updateUserStatus(Long userId, boolean enabled) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng với ID: " + userId));
+
+        if ("supper".equalsIgnoreCase(user.getUsername())) {
+            throw new IllegalArgumentException("Không thể thay đổi trạng thái của tài khoản Super Admin gốc!");
+        }
+
+        user.setEnabled(enabled);
+
+        // Khi vô hiệu hóa (disable) tài khoản, thu hồi và vô hiệu hóa toàn bộ token đang hoạt động
+        if (!enabled) {
+            user.setTokenInvalidBefore(LocalDateTime.now().minusSeconds(1));
+            refreshTokenService.deleteByUserId(user.getId());
+        }
+
+        User updatedUser = userRepository.save(user);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("id", updatedUser.getId());
+        res.put("username", updatedUser.getUsername());
+        res.put("enabled", updatedUser.isEnabled());
+        res.put("message", enabled 
+                ? "Đã kích hoạt (Enable) tài khoản '" + updatedUser.getUsername() + "' thành công!" 
+                : "Đã vô hiệu hóa (Disable) tài khoản '" + updatedUser.getUsername() + "' thành công!");
         return res;
     }
 

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, BookOpen, FolderTree, Users, LogOut, User, Crown, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, BookOpen, FolderTree, Users, LogOut, User, Crown, ShieldCheck, BookmarkCheck } from 'lucide-react';
 import { logoutUser } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser, hasResourcePermission } from '../../utils/auth';
 
@@ -14,6 +14,7 @@ export default function AdminHeader({ currentUser }) {
   const canManageCategories = useMemo(() => hasResourcePermission(user, 'CATEGORY'), [user]);
   const canManageRoles = useMemo(() => hasResourcePermission(user, 'ROLE'), [user]);
   const canManageUsers = useMemo(() => isSuperAdmin || hasResourcePermission(user, 'USER'), [user, isSuperAdmin]);
+  const canManageBorrows = useMemo(() => isSuperAdmin || user.role === 'ADMIN' || hasResourcePermission(user, 'BOOK') || hasResourcePermission(user, 'PURCHASE'), [user, isSuperAdmin]);
 
   const handleLogout = async () => {
     const refreshToken = getRefreshToken();
@@ -71,6 +72,16 @@ export default function AdminHeader({ currentUser }) {
             </NavLink>
           )}
 
+          {canManageBorrows && (
+            <NavLink
+              to="/admin/borrows"
+              className={({ isActive }) => `dash-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <BookmarkCheck size={18} />
+              <span>Quản Lý Mượn Sách</span>
+            </NavLink>
+          )}
+
           {canManageRoles && (
             <NavLink
               to="/admin/roles"
@@ -91,6 +102,7 @@ export default function AdminHeader({ currentUser }) {
             </NavLink>
           )}
         </nav>
+
 
         <div className="dash-user-section">
           <NavLink

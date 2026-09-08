@@ -22,6 +22,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   BookmarkCheck,
+  Calendar,
+  Clock,
 } from 'lucide-react';
 import { logoutUser, getCurrentUser, getAllBooks, getAllCategories, borrowBook, returnBook, getMyBorrow } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
@@ -52,6 +54,16 @@ export default function UserHome() {
 
   // Selected Book for Detail Modal
   const [selectedBook, setSelectedBook] = useState(null);
+
+  // Borrow Modal State (User sets Due Date & Note)
+  const [borrowModalTarget, setBorrowModalTarget] = useState(null);
+  const [borrowDueDate, setBorrowDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [borrowNote, setBorrowNote] = useState('');
+  const [submittingBorrow, setSubmittingBorrow] = useState(false);
 
   const fetchData = async (targetPage = page, targetSize = pageSize) => {
     setLoading(true);
@@ -111,14 +123,46 @@ export default function UserHome() {
     setLoading(false);
   };
 
-  const handleBorrowBook = async (bookId) => {
-    setLoading(true);
-    const [err, data] = await borrowBook(bookId);
-    setLoading(false);
+  const handleOpenBorrowModal = (book) => {
+    if (!book) return;
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 7);
+    setBorrowDueDate(defaultDate.toISOString().split('T')[0]);
+    setBorrowNote('');
+    setBorrowModalTarget(book);
+  };
+
+  const handleConfirmBorrow = async () => {
+    if (!borrowModalTarget) return;
+
+    if (!borrowDueDate) {
+      setAlert({ type: 'error', message: 'Vui lòng chọn ngày hẹn trả sách!' });
+      return;
+    }
+
+    const selectedDate = new Date(borrowDueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate <= today) {
+      setAlert({ type: 'error', message: 'Ngày hẹn trả sách phải từ ngày mai trở đi!' });
+      return;
+    }
+
+    setSubmittingBorrow(true);
+    const [err, data] = await borrowBook(borrowModalTarget.id, {
+      dueDate: borrowDueDate,
+      note: borrowNote,
+    });
+    setSubmittingBorrow(false);
+
     if (err) {
       setAlert({ type: 'error', message: err });
     } else {
-      setAlert({ type: 'success', message: 'Mượn sách thành công! Vui lòng đọc và giữ gìn tài liệu cẩn thận.' });
+      setAlert({
+        type: 'success',
+        message: `Đã gửi yêu cầu mượn cuốn sách "${borrowModalTarget.title}" thành công! Yêu cầu của bạn đang chờ Ban Quản Trị / Thủ Thư phê duyệt.`,
+      });
+      setBorrowModalTarget(null);
       if (selectedBook) setSelectedBook(null);
       fetchData();
     }
@@ -136,6 +180,7 @@ export default function UserHome() {
       fetchData();
     }
   };
+
 
   useEffect(() => {
     fetchData(0, pageSize);
@@ -394,10 +439,12 @@ export default function UserHome() {
         {myBorrow && myBorrow.book && (
           <div
             style={{
-              background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-              border: '1px solid #F59E0B',
+              background: myBorrow.status === 'PENDING'
+                ? 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)'
+                : 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+              border: myBorrow.status === 'PENDING' ? '1.5px solid #FCD34D' : '1px solid #F59E0B',
               borderRadius: '16px',
-              padding: '1rem 1.5rem',
+              padding: '1.1rem 1.5rem',
               marginBottom: '1.5rem',
               display: 'flex',
               alignItems: 'center',
@@ -407,39 +454,74 @@ export default function UserHome() {
               flexWrap: 'wrap',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <BookOpen size={24} color="#D97706" />
-              <div>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#B45309', textTransform: 'uppercase' }}>
-                  📖 Sách bạn đang mượn
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              {myBorrow.status === 'PENDING' ? (
+                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#FDE68A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B45309' }}>
+                  <Clock size={24} />
                 </div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#78350F' }}>
+              ) : (
+                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                  <BookOpen size={24} />
+                </div>
+              )}
+              <div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: myBorrow.status === 'PENDING' ? '#B45309' : '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {myBorrow.status === 'PENDING' ? '⏳ ĐƠN MƯỢN ĐANG CHỜ DUYỆT' : '📖 SÁCH BẠN ĐANG MƯỢN'}
+                </div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#78350F', marginTop: '0.1rem' }}>
                   {myBorrow.book.title} {myBorrow.book.author ? `(Tác giả: ${myBorrow.book.author})` : ''}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#92400E', marginTop: '0.2rem' }}>
+                  {myBorrow.dueDate && (
+                    <span>Hạn trả dự kiến: <strong>{new Date(myBorrow.dueDate).toLocaleDateString('vi-VN')}</strong></span>
+                  )}
+                  {myBorrow.status === 'PENDING' && (
+                    <span style={{ fontStyle: 'italic', marginLeft: '0.5rem' }}>(Vui lòng chờ Ban Quản Trị phê duyệt trước khi nhận sách)</span>
+                  )}
                 </div>
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => handleReturnBook(myBorrow.id)}
-              disabled={loading}
-              style={{
-                padding: '0.55rem 1.25rem',
-                background: '#D97706',
-                color: 'white',
-                border: 'none',
-                borderRadius: '10px',
-                fontWeight: 700,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              Trả Sách Ngay
-            </button>
+            {myBorrow.status === 'BORROWED' ? (
+              <button
+                type="button"
+                onClick={() => handleReturnBook(myBorrow.id)}
+                disabled={loading}
+                style={{
+                  padding: '0.55rem 1.25rem',
+                  background: '#D97706',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                Trả Sách Ngay
+              </button>
+            ) : (
+              <Link
+                to="/my-borrows"
+                style={{
+                  padding: '0.55rem 1.1rem',
+                  background: '#B45309',
+                  color: 'white',
+                  borderRadius: '10px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 8px rgba(180, 83, 9, 0.25)',
+                }}
+              >
+                Xem Tiến Độ Duyệt
+              </Link>
+            )}
           </div>
         )}
+
 
         {/* Hero Section */}
         <div
@@ -1050,7 +1132,7 @@ export default function UserHome() {
                         ) : (
                           <button
                             type="button"
-                            onClick={() => handleBorrowBook(book.id)}
+                            onClick={() => handleOpenBorrowModal(book)}
                             disabled={loading}
                             style={{
                               padding: '0.6rem',
@@ -1392,7 +1474,7 @@ export default function UserHome() {
                   type="button"
                   className="modal-btn-save"
                   style={{ background: '#10B981', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}
-                  onClick={() => handleBorrowBook(selectedBook.id)}
+                  onClick={() => handleOpenBorrowModal(selectedBook)}
                   disabled={loading}
                 >
                   Mượn Cuốn Sách Này
@@ -1402,6 +1484,131 @@ export default function UserHome() {
           </div>
         </div>
       )}
+
+      {/* MODAL XÁC NHẬN MƯỢN SÁCH & CHỌN NGÀY HẸN TRẢ */}
+      {borrowModalTarget && (
+        <div className="modal-overlay">
+          <div className="modal-card" style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10B981' }}>
+                <BookmarkCheck size={22} color="#10B981" />
+                <span>Đăng Ký Mượn Sách</span>
+              </h2>
+              <button
+                type="button"
+                onClick={() => setBorrowModalTarget(null)}
+                className="modal-close-btn"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#F8FAFC', padding: '1rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                {borrowModalTarget.coverUrl ? (
+                  <img
+                    src={borrowModalTarget.coverUrl}
+                    alt={borrowModalTarget.title}
+                    style={{ width: '48px', height: '64px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #CBD5E1' }}
+                  />
+                ) : (
+                  <div style={{ width: '48px', height: '64px', borderRadius: '8px', background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4F46E5' }}>
+                    <BookOpen size={20} />
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '1rem' }}>{borrowModalTarget.title}</div>
+                  <div style={{ fontSize: '0.85rem', color: '#64748B', marginTop: '0.2rem' }}>
+                    Tác giả: <strong>{borrowModalTarget.author || 'Chưa rõ'}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 700, marginTop: '0.2rem' }}>
+                    Khả dụng: {borrowModalTarget.availableStock !== undefined ? borrowModalTarget.availableStock : 10} cuốn
+                  </div>
+                </div>
+              </div>
+
+              {/* Due date input */}
+              <div style={{ marginTop: '0.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#334155', marginBottom: '0.4rem' }}>
+                  📅 Ngày Hẹn Trả Sách <span style={{ color: '#DC2626' }}>*</span>
+                </label>
+                <input
+                  type="date"
+                  value={borrowDueDate}
+                  min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
+                  onChange={(e) => setBorrowDueDate(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '10px',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '0.9rem',
+                    color: '#0F172A',
+                    outline: 'none',
+                    background: '#FFFFFF',
+                  }}
+                  required
+                />
+                <div style={{ fontSize: '0.775rem', color: '#64748B', marginTop: '0.3rem' }}>
+                  * Vui lòng chọn ngày bạn dự kiến mang sách hoàn trả về thư viện (tối thiểu từ ngày mai).
+                </div>
+              </div>
+
+              {/* Note input */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#334155', marginBottom: '0.4rem' }}>
+                  📝 Ghi chú cho Thủ thư / Ban Quản Trị (Tùy chọn)
+                </label>
+                <textarea
+                  placeholder="Ví dụ: Mượn phục vụ nghiên cứu đồ án, mượn đọc tại nhà..."
+                  value={borrowNote}
+                  onChange={(e) => setBorrowNote(e.target.value)}
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: '10px',
+                    border: '1px solid #CBD5E1',
+                    fontSize: '0.875rem',
+                    color: '#0F172A',
+                    outline: 'none',
+                    resize: 'vertical',
+                  }}
+                />
+              </div>
+
+              <div style={{ background: '#FFFBEB', padding: '0.85rem', borderRadius: '10px', border: '1px solid #FDE68A', fontSize: '0.825rem', color: '#92400E', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                <Clock size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  <strong>Quy trình mượn sách:</strong> Sau khi gửi yêu cầu, đơn mượn của bạn sẽ ở trạng thái <strong>CHỜ DUYỆT</strong>. Bạn sẽ nhận được sách sau khi Ban Quản Trị / Thủ Thư kiểm tra và phê duyệt.
+                </span>
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="modal-btn-cancel"
+                onClick={() => setBorrowModalTarget(null)}
+                disabled={submittingBorrow}
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                className="modal-btn-save"
+                style={{ background: '#10B981', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                onClick={handleConfirmBorrow}
+                disabled={submittingBorrow}
+              >
+                {submittingBorrow ? <RefreshCw size={16} className="animate-spin" /> : <BookmarkCheck size={16} />}
+                <span>Gửi Yêu Cầu Mượn Sách</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

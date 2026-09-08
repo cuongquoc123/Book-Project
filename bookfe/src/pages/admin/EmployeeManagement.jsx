@@ -17,9 +17,20 @@ import {
   KeyRound,
   Eye,
   EyeOff,
+  UserCheck,
+  UserX,
+  CheckCircle2,
 } from 'lucide-react';
-import { getCurrentUser, getAllUsers, createAdminUser, getAllRoles, updateUserRole, changePassword } from '../../services/api';
-import { getUser, setAuthData } from '../../utils/auth';
+import {
+  getCurrentUser,
+  getAllUsers,
+  createAdminUser,
+  getAllRoles,
+  updateUserRole,
+  updateUserStatus,
+  changePassword,
+} from '../../services/api';
+import { getUser, setAuthData, hasResourcePermission } from '../../utils/auth';
 import AdminHeader from './AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import FormInput from '../../components/FormInput';
@@ -33,6 +44,7 @@ export default function EmployeeManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [alert, setAlert] = useState({ type: '', message: '' });
   const [updatingUserId, setUpdatingUserId] = useState(null);
+  const [updatingStatusUserId, setUpdatingStatusUserId] = useState(null);
 
   // Modal State for Creating Admin Account
   const [showAddModal, setShowAddModal] = useState(false);
@@ -98,6 +110,16 @@ export default function EmployeeManagement() {
 
   const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
 
+  // Permission check: Who is allowed to update/toggle user status
+  const canUpdateUser = useMemo(() => {
+    return (
+      isSuperAdmin ||
+      currentUser.role === 'ADMIN' ||
+      hasResourcePermission(currentUser, 'USER_UPDATE') ||
+      hasResourcePermission(currentUser, 'USER')
+    );
+  }, [currentUser, isSuperAdmin]);
+
   // Filtered Users List
   const filteredUsers = useMemo(() => {
     return userList.filter((user) => {
@@ -144,6 +166,10 @@ export default function EmployeeManagement() {
 
   // Change User Role handler
   const handleUserRoleChange = async (targetUser, newRoleId) => {
+    if (!canUpdateUser) {
+      setAlert({ type: 'error', message: 'Bạn không có quyền phân vai trò cho người dùng!' });
+      return;
+    }
     if (!newRoleId) return;
     if (targetUser.username === 'supper') {
       setAlert({ type: 'error', message: 'Không thể thay đổi Role của tài khoản Super Admin gốc!' });
@@ -160,6 +186,46 @@ export default function EmployeeManagement() {
       setAlert({
         type: 'success',
         message: `Cập nhật Role cho người dùng '${targetUser.username}' thành '${res.roleDisplayName || res.roleName}' thành công!`,
+      });
+      // Refresh list to update UI
+      const [usersErr, usersRes] = await getAllUsers();
+      if (!usersErr && Array.isArray(usersRes)) {
+        setUserList(usersRes);
+      }
+    }
+  };
+
+  // Toggle User Status (Enable / Disable)
+  const handleToggleUserStatus = async (targetUser) => {
+    if (!canUpdateUser) {
+      setAlert({ type: 'error', message: 'Bạn không có quyền thay đổi trạng thái hoạt động của người dùng!' });
+      return;
+    }
+
+    if (targetUser.username === 'supper') {
+      setAlert({ type: 'error', message: 'Không thể vô hiệu hóa tài khoản Super Admin gốc!' });
+      return;
+    }
+
+    const nextStatus = !targetUser.enabled;
+    const actionName = nextStatus ? 'kích hoạt (Enable)' : 'vô hiệu hóa (Disable)';
+
+    if (!nextStatus && targetUser.id === currentUser.id) {
+      if (!window.confirm('Cảnh báo: Bạn đang chuẩn bị vô hiệu hóa chính tài khoản của mình. Bạn sẽ bị đăng xuất ngay lập tức. Tiếp tục?')) {
+        return;
+      }
+    }
+
+    setUpdatingStatusUserId(targetUser.id);
+    const [err, res] = await updateUserStatus(targetUser.id, nextStatus);
+    setUpdatingStatusUserId(null);
+
+    if (err) {
+      setAlert({ type: 'error', message: `Thao tác ${actionName} thất bại: ${err}` });
+    } else {
+      setAlert({
+        type: 'success',
+        message: res?.message || `Đã ${actionName} tài khoản '${targetUser.username}' thành công!`,
       });
       // Refresh list to update UI
       const [usersErr, usersRes] = await getAllUsers();
@@ -350,14 +416,16 @@ export default function EmployeeManagement() {
               </p>
             </div>
           ) : (
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>ID</th>
+            <div className="dash-table-scroll">
+              <table className="dash-table" style={{ minWidth: '1050px' }}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
                   <th>Tên Đăng Nhập (Username)</th>
                   <th>Họ và Tên (Full Name)</th>
                   <th>Email</th>
                   <th>Role Hiện Tại</th>
+                  <th>Trạng Thái</th>
                   <th>Gán / Điều Chỉnh Role</th>
                   <th>Hành Động</th>
                   <th>Ngày Khởi Tạo</th>
@@ -368,6 +436,9 @@ export default function EmployeeManagement() {
                   const isSuper = user.role === 'SUPER_ADMIN';
                   const isAdmin = user.role === 'ADMIN';
                   const isRootSuper = user.username === 'supper';
+                  const isSelf = user.id === currentUser.id;
+                  const isUserEnabled = user.enabled !== false;
+                  const isEmailVer = user.emailVerified === true;
 
                   return (
                     <tr key={user.id}>
@@ -376,6 +447,11 @@ export default function EmployeeManagement() {
                         <div style={{ fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                           {isSuper ? <Crown size={16} color="#7C3AED" /> : <User size={16} color="#475569" />}
                           {user.username}
+                          {isSelf && (
+                            <span style={{ fontSize: '0.725rem', padding: '0.1rem 0.35rem', background: '#F1F5F9', color: '#475569', borderRadius: '4px' }}>
+                              (Bạn)
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td>{user.fullName || 'Chưa cập nhật'}</td>
@@ -384,6 +460,83 @@ export default function EmployeeManagement() {
                         <span className={`role-tag ${isSuper ? 'super-admin' : isAdmin ? 'admin' : 'client'}`}>
                           {user.roleDisplayName || user.role}
                         </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                          {/* Enabled / Disabled Badge */}
+                          {isUserEnabled ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '6px',
+                                fontSize: '0.775rem',
+                                fontWeight: 700,
+                                background: '#DCFCE7',
+                                color: '#166534',
+                                width: 'fit-content',
+                              }}
+                            >
+                              <CheckCircle2 size={12} /> Hoạt động
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem',
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '6px',
+                                fontSize: '0.775rem',
+                                fontWeight: 700,
+                                background: '#FEE2E2',
+                                color: '#991B1B',
+                                width: 'fit-content',
+                              }}
+                            >
+                              <UserX size={12} /> Đã khóa
+                            </span>
+                          )}
+
+                          {/* Email Verified Badge */}
+                          {isEmailVer ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                fontSize: '0.725rem',
+                                fontWeight: 600,
+                                background: '#E0F2FE',
+                                color: '#0369A1',
+                                width: 'fit-content',
+                              }}
+                            >
+                              Email đã xác thực
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                fontSize: '0.725rem',
+                                fontWeight: 600,
+                                background: '#FEF3C7',
+                                color: '#B45309',
+                                width: 'fit-content',
+                              }}
+                            >
+                              Email chưa xác thực
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         {isRootSuper ? (
@@ -401,11 +554,14 @@ export default function EmployeeManagement() {
                                 borderRadius: '8px',
                                 border: '1px solid #CBD5E1',
                                 background: updatingUserId === user.id ? '#F1F5F9' : '#FFFFFF',
-                                minWidth: '160px',
+                                minWidth: '150px',
+                                cursor: canUpdateUser ? 'pointer' : 'not-allowed',
+                                opacity: canUpdateUser ? 1 : 0.6,
                               }}
                               value={user.roleId || ''}
                               onChange={(e) => handleUserRoleChange(user, e.target.value)}
-                              disabled={updatingUserId === user.id}
+                              disabled={!canUpdateUser || updatingUserId === user.id}
+                              title={!canUpdateUser ? 'Bạn không có quyền thay đổi Role' : 'Chọn Role cho user'}
                             >
                               <option value="" disabled>-- Chọn Role --</option>
                               {rolesList.map((r) => (
@@ -421,31 +577,112 @@ export default function EmployeeManagement() {
                           </div>
                         )}
                       </td>
-                      <td>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenPassModal(user)}
-                          title="Đổi mật khẩu cho người dùng này"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            padding: '0.4rem 0.75rem',
-                            background: '#F5F3FF',
-                            color: '#7C3AED',
-                            border: '1px solid #DDD6FE',
-                            borderRadius: '8px',
-                            fontSize: '0.825rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          <KeyRound size={14} />
-                          <span>Đổi Pass</span>
-                        </button>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'nowrap' }}>
+                          {/* Enable / Disable Button */}
+                          {isRootSuper ? (
+                            <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontStyle: 'italic' }}>
+                              Cố định
+                            </span>
+                          ) : isUserEnabled ? (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleUserStatus(user)}
+                              disabled={!canUpdateUser || updatingStatusUserId === user.id}
+                              title={
+                                !canUpdateUser
+                                  ? 'Bạn không có quyền vô hiệu hóa người dùng'
+                                  : 'Vô hiệu hóa (Khóa) tài khoản này'
+                              }
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.4rem 0.65rem',
+                                background: '#FEF2F2',
+                                color: '#DC2626',
+                                border: '1px solid #FECACA',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                cursor: canUpdateUser ? 'pointer' : 'not-allowed',
+                                opacity: canUpdateUser ? 1 : 0.6,
+                                whiteSpace: 'nowrap',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {updatingStatusUserId === user.id ? (
+                                <RefreshCw size={13} className="spin" />
+                              ) : (
+                                <UserX size={13} />
+                              )}
+                              <span>Khóa</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleToggleUserStatus(user)}
+                              disabled={!canUpdateUser || updatingStatusUserId === user.id}
+                              title={
+                                !canUpdateUser
+                                  ? 'Bạn không có quyền kích hoạt người dùng'
+                                  : 'Kích hoạt tài khoản này'
+                              }
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                padding: '0.4rem 0.65rem',
+                                background: '#F0FDF4',
+                                color: '#16A34A',
+                                border: '1px solid #BBF7D0',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                cursor: canUpdateUser ? 'pointer' : 'not-allowed',
+                                opacity: canUpdateUser ? 1 : 0.6,
+                                whiteSpace: 'nowrap',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {updatingStatusUserId === user.id ? (
+                                <RefreshCw size={13} className="spin" />
+                              ) : (
+                                <UserCheck size={13} />
+                              )}
+                              <span>Kích hoạt</span>
+                            </button>
+                          )}
+
+                          {/* Change Password Button */}
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPassModal(user)}
+                            disabled={!isSuperAdmin}
+                            title={!isSuperAdmin ? 'Chỉ Super Admin mới được đổi mật khẩu trực tiếp' : 'Đổi mật khẩu cho người dùng này'}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.4rem 0.65rem',
+                              background: '#F5F3FF',
+                              color: '#7C3AED',
+                              border: '1px solid #DDD6FE',
+                              borderRadius: '8px',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              cursor: isSuperAdmin ? 'pointer' : 'not-allowed',
+                              opacity: isSuperAdmin ? 1 : 0.6,
+                              whiteSpace: 'nowrap',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <KeyRound size={13} />
+                            <span>Đổi Pass</span>
+                          </button>
+                        </div>
                       </td>
-                      <td style={{ fontSize: '0.825rem', color: '#64748B' }}>
+                      <td style={{ fontSize: '0.825rem', color: '#64748B', whiteSpace: 'nowrap' }}>
                         {user.createdAt ? new Date(user.createdAt).toLocaleDateString('vi-VN') : 'Ban đầu'}
                       </td>
                     </tr>
@@ -453,9 +690,10 @@ export default function EmployeeManagement() {
                 })}
               </tbody>
             </table>
-          )}
-        </div>
-      </main>
+          </div>
+        )}
+      </div>
+    </main>
 
       {/* MODAL: Create Admin Employee */}
       {showAddModal && (

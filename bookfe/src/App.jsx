@@ -8,6 +8,7 @@ import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/Dashboard';
 import BookManagement from './pages/admin/BookManagement';
 import CategoryManagement from './pages/admin/CategoryManagement';
+import BorrowManagement from './pages/admin/BorrowManagement';
 import EmployeeManagement from './pages/admin/EmployeeManagement';
 import RoleManagement from './pages/admin/RoleManagement';
 import HomeNavigation from './pages/HomeNavigation';
@@ -87,6 +88,15 @@ export default function App() {
         />
 
         <Route
+          path="/admin/borrows"
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN">
+              <BorrowManagement />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
           path="/admin/roles"
           element={
             <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="ROLE_">
@@ -95,11 +105,11 @@ export default function App() {
           }
         />
 
-        {/* Super Admin Only Route: Employee / User Management */}
+        {/* Employee / User Management */}
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute allowedRoles={['SUPER_ADMIN']} portal="ADMIN" requireSuperAdmin={true} requiredPermPrefix="USER_">
+            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="USER_">
               <EmployeeManagement />
             </ProtectedRoute>
           }
@@ -110,3 +120,4 @@ export default function App() {
     </Router>
   );
 }
+

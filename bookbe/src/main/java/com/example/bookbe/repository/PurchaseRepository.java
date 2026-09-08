@@ -13,19 +13,34 @@ import com.example.bookbe.enums.PurchaseStatus;
 
 public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
     boolean existsByUserIdAndStatus(Long userId, PurchaseStatus status);
+    boolean existsByUserIdAndStatusIn(Long userId, List<PurchaseStatus> statuses);
     boolean existsByUserIdAndBookIdAndStatus(Long userId, Long bookId, PurchaseStatus status);
     
     // Lấy lượt mượn đang active của User
     Optional<Purchase> findByUserIdAndStatus(Long userId, PurchaseStatus status);
+
+    // Lấy lượt mượn đang active hoặc pending của User
+    Optional<Purchase> findFirstByUserIdAndStatusInOrderByCreatedAtDesc(Long userId, List<PurchaseStatus> statuses);
     
     // Kiểm tra user có đang mượn đúng cuốn sách này không
     Optional<Purchase> findByUserIdAndBookIdAndStatus(Long userId, Long bookId, PurchaseStatus status);
 
-    // Lấy tất cả lịch sử mượn/trả của User
+    // Lấy tất cả lịch sử mượn/trả của User kèm Book
+    @Query("SELECT p FROM Purchase p LEFT JOIN FETCH p.book b LEFT JOIN FETCH b.category WHERE p.user.id = :userId ORDER BY p.createdAt DESC")
+    List<Purchase> findByUserIdWithBookOrderByCreatedAtDesc(@Param("userId") Long userId);
+
     List<Purchase> findByUserIdOrderByCreatedAtDesc(Long userId);
+
+    // Lấy tất cả danh sách mượn sách cho Admin kèm đầy đủ User, Role, Book, Category
+    @Query("SELECT p FROM Purchase p LEFT JOIN FETCH p.user u LEFT JOIN FETCH u.role LEFT JOIN FETCH p.book b LEFT JOIN FETCH b.category ORDER BY p.createdAt DESC")
+    List<Purchase> findAllWithDetails();
+
+    @Query("SELECT p FROM Purchase p LEFT JOIN FETCH p.user u LEFT JOIN FETCH u.role LEFT JOIN FETCH p.book b LEFT JOIN FETCH b.category WHERE p.status = :status ORDER BY p.createdAt DESC")
+    List<Purchase> findAllWithDetailsByStatus(@Param("status") PurchaseStatus status);
 
     @Modifying
     @Query("DELETE FROM Purchase p WHERE p.book.id = :bookId")
     void deleteByBookId(@Param("bookId") Long bookId);
 }
+
 

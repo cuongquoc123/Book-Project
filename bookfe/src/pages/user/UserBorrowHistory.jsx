@@ -15,6 +15,8 @@ import {
   Calendar,
   FileText,
   RotateCcw,
+  XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { logoutUser, getCurrentUser, getMyBorrow, getBorrowHistory, returnBook } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
@@ -34,7 +36,7 @@ export default function UserBorrowHistory() {
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'BORROWED' | 'RETURNED'
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'BORROWED' | 'RETURNED' | 'REJECTED'
 
   const fetchData = async () => {
     setLoading(true);
@@ -122,6 +124,7 @@ export default function UserBorrowHistory() {
   }, [historyList, searchQuery, statusFilter]);
 
   // Statistics
+  const pendingCount = useMemo(() => historyList.filter((h) => h.status === 'PENDING').length, [historyList]);
   const activeCount = useMemo(() => historyList.filter((h) => h.status === 'BORROWED').length, [historyList]);
   const returnedCount = useMemo(() => historyList.filter((h) => h.status === 'RETURNED').length, [historyList]);
 
@@ -294,33 +297,33 @@ export default function UserBorrowHistory() {
               Sách Đang Mượn & Lịch Sử Mượn Trả
             </h1>
             <p style={{ fontSize: '0.925rem', color: '#94A3B8', maxWidth: '560px' }}>
-              Theo dõi chi tiết cuốn sách bạn đang mượn, ngày mượn và toàn bộ nhật ký mượn trả từ trước tới nay.
+              Theo dõi chi tiết các yêu cầu mượn sách, tiến độ phê duyệt từ Ban Quản Trị và toàn bộ nhật ký mượn trả.
             </p>
           </div>
 
           {/* Quick Metrics */}
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
             <div style={{ background: 'rgba(255, 255, 255, 0.08)', backdropFilter: 'blur(8px)', padding: '0.85rem 1.25rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 600 }}>ĐANG MƯỢN</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#F59E0B' }}>{activeCount} cuốn</div>
+              <div style={{ fontSize: '0.75rem', color: '#FCD34D', fontWeight: 600 }}>CHỜ DUYỆT</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#FBBF24' }}>{pendingCount} đơn</div>
             </div>
             <div style={{ background: 'rgba(255, 255, 255, 0.08)', backdropFilter: 'blur(8px)', padding: '0.85rem 1.25rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 600 }}>ĐÃ TRẢ</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#10B981' }}>{returnedCount} lần</div>
+              <div style={{ fontSize: '0.75rem', color: '#93C5FD', fontWeight: 600 }}>ĐANG MƯỢN</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#60A5FA' }}>{activeCount} cuốn</div>
             </div>
             <div style={{ background: 'rgba(255, 255, 255, 0.08)', backdropFilter: 'blur(8px)', padding: '0.85rem 1.25rem', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 600 }}>TỔNG SỐ LƯỢT</div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#38BDF8' }}>{historyList.length} lượt</div>
+              <div style={{ fontSize: '0.75rem', color: '#A7F3D0', fontWeight: 600 }}>ĐÃ TRẢ</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#34D399' }}>{returnedCount} lần</div>
             </div>
           </div>
         </div>
 
-        {/* SECTION 1: SÁCH ĐANG MƯỢN (ACTIVE BORROW) */}
+        {/* SECTION 1: SÁCH ĐANG MƯỢN HOẶC CHỜ DUYỆT */}
         <div style={{ marginBottom: '2.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
             <Clock size={20} color="#D97706" />
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A' }}>
-              Cuốn Sách Bạn Đang Mượn Hiện Tại
+              Trạng Thái Mượn Sách Hiện Tại
             </h2>
           </div>
 
@@ -332,11 +335,13 @@ export default function UserBorrowHistory() {
           ) : myActiveBorrow && myActiveBorrow.book ? (
             <div
               style={{
-                background: 'linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)',
+                background: myActiveBorrow.status === 'PENDING'
+                  ? 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)'
+                  : 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
                 borderRadius: '20px',
-                border: '1.5px solid #FCD34D',
+                border: myActiveBorrow.status === 'PENDING' ? '1.5px solid #FCD34D' : '1.5px solid #93C5FD',
                 padding: '1.75rem 2rem',
-                boxShadow: '0 8px 24px rgba(245, 158, 11, 0.12)',
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.05)',
                 display: 'flex',
                 gap: '1.75rem',
                 alignItems: 'center',
@@ -354,7 +359,7 @@ export default function UserBorrowHistory() {
                     objectFit: 'cover',
                     borderRadius: '12px',
                     boxShadow: '0 6px 16px rgba(0,0,0,0.12)',
-                    border: '1px solid #F59E0B',
+                    border: '1px solid #CBD5E1',
                     flexShrink: 0,
                   }}
                 />
@@ -364,12 +369,12 @@ export default function UserBorrowHistory() {
                     width: '110px',
                     height: '150px',
                     borderRadius: '12px',
-                    background: '#FDE68A',
+                    background: '#F1F5F9',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#B45309',
+                    color: '#64748B',
                     flexShrink: 0,
                   }}
                 >
@@ -385,7 +390,7 @@ export default function UserBorrowHistory() {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '0.4rem',
-                    background: '#D97706',
+                    background: myActiveBorrow.status === 'PENDING' ? '#D97706' : '#2563EB',
                     color: 'white',
                     padding: '0.25rem 0.75rem',
                     borderRadius: '8px',
@@ -395,54 +400,87 @@ export default function UserBorrowHistory() {
                     textTransform: 'uppercase',
                   }}
                 >
-                  <Clock size={12} /> Đang mượn
+                  {myActiveBorrow.status === 'PENDING' ? <Clock size={12} /> : <BookOpen size={12} />}
+                  <span>{myActiveBorrow.status === 'PENDING' ? 'Đang Chờ Phê Duyệt' : 'Đang Được Mượn'}</span>
                 </div>
 
-                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#78350F', marginBottom: '0.4rem', lineHeight: '1.3' }}>
+                <h3 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.4rem', lineHeight: '1.3' }}>
                   {myActiveBorrow.book.title}
                 </h3>
 
-                <div style={{ fontSize: '0.9rem', color: '#92400E', marginBottom: '0.85rem' }}>
+                <div style={{ fontSize: '0.9rem', color: '#475569', marginBottom: '0.85rem' }}>
                   Tác giả: <strong>{myActiveBorrow.book.author || 'Chưa rõ'}</strong>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.85rem', color: '#B45309', background: 'rgba(255, 255, 255, 0.6)', padding: '0.65rem 1rem', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', fontSize: '0.85rem', color: '#334155', background: 'rgba(255, 255, 255, 0.7)', padding: '0.65rem 1rem', borderRadius: '10px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <Calendar size={15} />
-                    <span>Ngày mượn: <strong>{myActiveBorrow.borrowedAt ? new Date(myActiveBorrow.borrowedAt).toLocaleDateString('vi-VN') + ' ' + new Date(myActiveBorrow.borrowedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : 'Vừa mượn'}</strong></span>
+                    <span>Ngày gửi / mượn: <strong>{myActiveBorrow.borrowedAt || myActiveBorrow.createdAt ? new Date(myActiveBorrow.borrowedAt || myActiveBorrow.createdAt).toLocaleDateString('vi-VN') : 'Vừa xong'}</strong></span>
                   </div>
+                  {myActiveBorrow.dueDate && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#2563EB', fontWeight: 700 }}>
+                      <Calendar size={15} />
+                      <span>Hạn trả: {new Date(myActiveBorrow.dueDate).toLocaleDateString('vi-VN')}</span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <FileText size={15} />
-                    <span>Mã lượt mượn: <strong>#{myActiveBorrow.id}</strong></span>
+                    <span>Mã đơn: <strong>#{myActiveBorrow.id}</strong></span>
                   </div>
                 </div>
+
+                {myActiveBorrow.status === 'PENDING' && (
+                  <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', color: '#B45309', fontStyle: 'italic' }}>
+                    * Đơn mượn của bạn đã được chuyển tới Ban Quản Trị. Vui lòng đợi thủ thư xác nhận phê duyệt để nhận sách.
+                  </div>
+                )}
               </div>
 
               {/* Action Button */}
               <div style={{ flexShrink: 0 }}>
-                <button
-                  type="button"
-                  onClick={() => handleReturn(myActiveBorrow.id)}
-                  disabled={submitting}
-                  style={{
-                    padding: '0.85rem 1.75rem',
-                    background: '#D97706',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    fontWeight: 800,
-                    fontSize: '0.95rem',
-                    cursor: submitting ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <RotateCcw size={18} className={submitting ? 'animate-spin' : ''} />
-                  <span>Trả Sách Này Ngay</span>
-                </button>
+                {myActiveBorrow.status === 'BORROWED' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleReturn(myActiveBorrow.id)}
+                    disabled={submitting}
+                    style={{
+                      padding: '0.85rem 1.75rem',
+                      background: '#D97706',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontWeight: 800,
+                      fontSize: '0.95rem',
+                      cursor: submitting ? 'not-allowed' : 'pointer',
+                      boxShadow: '0 4px 14px rgba(217, 119, 6, 0.35)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <RotateCcw size={18} className={submitting ? 'animate-spin' : ''} />
+                    <span>Trả Sách Này Ngay</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleReturn(myActiveBorrow.id)}
+                    disabled={submitting}
+                    style={{
+                      padding: '0.75rem 1.25rem',
+                      background: '#F1F5F9',
+                      color: '#64748B',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '12px',
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      cursor: submitting ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    Hủy Yêu Cầu Mượn
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -472,7 +510,7 @@ export default function UserBorrowHistory() {
                 <CheckCircle2 size={28} />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#0F172A', marginBottom: '0.3rem' }}>
-                Bạn hiện tại không mượn cuốn sách nào
+                Bạn hiện tại không mượn hoặc không có yêu cầu chờ duyệt
               </h3>
               <p style={{ fontSize: '0.875rem', maxWidth: '420px', margin: '0 auto 1.25rem auto' }}>
                 Mỗi độc giả chỉ được mượn 1 cuốn sách tại một thời điểm. Truy cập kho sách để chọn mượn tác phẩm yêu thích.
@@ -529,7 +567,7 @@ export default function UserBorrowHistory() {
               </div>
 
               {/* Status Filter Buttons */}
-              <div style={{ display: 'flex', gap: '0.35rem', background: '#F8FAFC', padding: '0.25rem', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+              <div style={{ display: 'flex', gap: '0.35rem', background: '#F8FAFC', padding: '0.25rem', borderRadius: '10px', border: '1px solid #E2E8F0', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setStatusFilter('ALL')}
@@ -549,6 +587,23 @@ export default function UserBorrowHistory() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setStatusFilter('PENDING')}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    background: statusFilter === 'PENDING' ? '#FEF3C7' : 'transparent',
+                    color: statusFilter === 'PENDING' ? '#B45309' : '#64748B',
+                    boxShadow: statusFilter === 'PENDING' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Chờ duyệt
+                </button>
+                <button
+                  type="button"
                   onClick={() => setStatusFilter('BORROWED')}
                   style={{
                     padding: '0.35rem 0.75rem',
@@ -556,8 +611,8 @@ export default function UserBorrowHistory() {
                     fontSize: '0.8rem',
                     fontWeight: 700,
                     border: 'none',
-                    background: statusFilter === 'BORROWED' ? '#FEF3C7' : 'transparent',
-                    color: statusFilter === 'BORROWED' ? '#B45309' : '#64748B',
+                    background: statusFilter === 'BORROWED' ? '#EFF6FF' : 'transparent',
+                    color: statusFilter === 'BORROWED' ? '#1D4ED8' : '#64748B',
                     boxShadow: statusFilter === 'BORROWED' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                     cursor: 'pointer',
                   }}
@@ -624,11 +679,12 @@ export default function UserBorrowHistory() {
                 <table className="dash-table">
                   <thead>
                     <tr>
-                      <th>Mã Lượt</th>
+                      <th>Mã Đơn</th>
                       <th>Bìa Sách</th>
                       <th>Tên Sách</th>
                       <th>Tác Giả</th>
-                      <th>Ngày Mượn</th>
+                      <th>Ngày Gửi / Mượn</th>
+                      <th>Hạn Trả</th>
                       <th>Ngày Trả</th>
                       <th>Trạng Thái</th>
                       <th style={{ textAlign: 'right' }}>Thao Tác</th>
@@ -636,8 +692,10 @@ export default function UserBorrowHistory() {
                   </thead>
                   <tbody>
                     {filteredHistory.map((item) => {
+                      const isPending = item.status === 'PENDING';
                       const isBorrowed = item.status === 'BORROWED';
                       const isReturned = item.status === 'RETURNED';
+                      const isRejected = item.status === 'REJECTED';
 
                       return (
                         <tr key={item.id}>
@@ -673,6 +731,15 @@ export default function UserBorrowHistory() {
                             </div>
                           </td>
                           <td>
+                            {item.dueDate ? (
+                              <div style={{ fontSize: '0.825rem', color: '#2563EB', fontWeight: 700 }}>
+                                {new Date(item.dueDate).toLocaleDateString('vi-VN')}
+                              </div>
+                            ) : (
+                              <span style={{ color: '#94A3B8' }}>---</span>
+                            )}
+                          </td>
+                          <td>
                             {item.returnedAt ? (
                               <div style={{ fontSize: '0.825rem', color: '#059669', fontWeight: 600 }}>
                                 {new Date(item.returnedAt).toLocaleDateString('vi-VN')} {new Date(item.returnedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
@@ -684,17 +751,24 @@ export default function UserBorrowHistory() {
                             )}
                           </td>
                           <td>
-                            {isBorrowed ? (
+                            {isPending && (
                               <span style={{ background: '#FEF3C7', color: '#B45309', border: '1px solid #FCD34D', padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.775rem', fontWeight: 800 }}>
+                                CHỜ DUYỆT
+                              </span>
+                            )}
+                            {isBorrowed && (
+                              <span style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.775rem', fontWeight: 800 }}>
                                 ĐANG MƯỢN
                               </span>
-                            ) : isReturned ? (
+                            )}
+                            {isReturned && (
                               <span style={{ background: '#ECFDF5', color: '#047857', border: '1px solid #A7F3D0', padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.775rem', fontWeight: 800 }}>
                                 ĐÃ TRẢ
                               </span>
-                            ) : (
-                              <span style={{ background: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.775rem', fontWeight: 800 }}>
-                                {item.status}
+                            )}
+                            {isRejected && (
+                              <span style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FCA5A5', padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.775rem', fontWeight: 800 }}>
+                                TỪ CHỐI
                               </span>
                             )}
                           </td>
@@ -735,3 +809,4 @@ export default function UserBorrowHistory() {
     </div>
   );
 }
+
