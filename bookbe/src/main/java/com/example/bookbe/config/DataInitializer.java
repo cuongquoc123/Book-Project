@@ -174,6 +174,7 @@ public class DataInitializer implements CommandLineRunner {
                     .email("supper@example.com")
                     .fullName("Super Admin")
                     .role(superAdminRole)
+                    .enabled(true)
                     .build();
 
             userRepository.save(superAdmin);

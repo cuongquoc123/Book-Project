@@ -16,6 +16,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import './styles/auth.css';
 import ResetPassword from './pages/user/ResetPassword';
 import ForgotPassword from './pages/user/ForgotPassword';
+import VerifyEmail from './pages/user/VerifyEmail';
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/login" element={<ClientLogin />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         {/* Protected User Home & Profile Routes */}
         <Route
           path="/home"

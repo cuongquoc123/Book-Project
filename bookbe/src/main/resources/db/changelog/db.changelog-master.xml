@@ -2,18 +2,17 @@
 <databaseChangeLog
     xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
-        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <changeSet id="20260827-01-add-is-deleted-to-refresh-token" author="bookbe">
         <preConditions onFail="MARK_RAN">
             <not>
-                <columnExists tableName="refresh_token" columnName="is_deleted"/>
+                <columnExists tableName="refresh_token" columnName="is_deleted" />
             </not>
         </preConditions>
         <addColumn tableName="refresh_token">
             <column name="is_deleted" type="BOOLEAN" defaultValueBoolean="false">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
         </addColumn>
     </changeSet>
@@ -21,54 +20,58 @@
     <changeSet id="20260831-02-create-roles-and-permissions-tables" author="bookbe">
         <preConditions onFail="MARK_RAN">
             <not>
-                <tableExists tableName="permissions"/>
+                <tableExists tableName="permissions" />
             </not>
         </preConditions>
         <createTable tableName="permissions">
             <column name="id" type="BIGINT" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
+                <constraints primaryKey="true" nullable="false" />
             </column>
             <column name="name" type="VARCHAR(100)">
-                <constraints nullable="false" unique="true"/>
+                <constraints nullable="false" unique="true" />
             </column>
             <column name="resource" type="VARCHAR(50)">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
             <column name="action" type="VARCHAR(50)">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
-            <column name="description" type="VARCHAR(255)"/>
+            <column name="description" type="VARCHAR(255)" />
         </createTable>
 
         <createTable tableName="roles">
             <column name="id" type="BIGINT" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
+                <constraints primaryKey="true" nullable="false" />
             </column>
             <column name="name" type="VARCHAR(50)">
-                <constraints nullable="false" unique="true"/>
+                <constraints nullable="false" unique="true" />
             </column>
-            <column name="display_name" type="VARCHAR(100)"/>
-            <column name="description" type="VARCHAR(255)"/>
+            <column name="display_name" type="VARCHAR(100)" />
+            <column name="description" type="VARCHAR(255)" />
             <column name="is_system" type="BOOLEAN" defaultValueBoolean="false">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
-            <column name="created_at" type="DATETIME"/>
-            <column name="updated_at" type="DATETIME"/>
+            <column name="created_at" type="DATETIME" />
+            <column name="updated_at" type="DATETIME" />
         </createTable>
 
         <createTable tableName="role_permissions">
             <column name="role_id" type="BIGINT">
-                <constraints nullable="false" foreignKeyName="fk_role_permissions_role" referencedTableName="roles" referencedColumnNames="id" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_role_permissions_role"
+                    referencedTableName="roles" referencedColumnNames="id" deleteCascade="true" />
             </column>
             <column name="permission_id" type="BIGINT">
-                <constraints nullable="false" foreignKeyName="fk_role_permissions_permission" referencedTableName="permissions" referencedColumnNames="id" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_role_permissions_permission"
+                    referencedTableName="permissions" referencedColumnNames="id"
+                    deleteCascade="true" />
             </column>
         </createTable>
-        <addPrimaryKey tableName="role_permissions" columnNames="role_id, permission_id"/>
+        <addPrimaryKey tableName="role_permissions" columnNames="role_id, permission_id" />
 
         <addColumn tableName="users">
             <column name="role_id" type="BIGINT">
-                <constraints foreignKeyName="fk_users_role" referencedTableName="roles" referencedColumnNames="id"/>
+                <constraints foreignKeyName="fk_users_role" referencedTableName="roles"
+                    referencedColumnNames="id" />
             </column>
         </addColumn>
     </changeSet>
@@ -76,17 +79,19 @@
     <changeSet id="20260831-03-add-updated-by-to-books-and-categories" author="bookbe">
         <preConditions onFail="MARK_RAN">
             <not>
-                <columnExists tableName="books" columnName="updated_by_user_id"/>
+                <columnExists tableName="books" columnName="updated_by_user_id" />
             </not>
         </preConditions>
         <addColumn tableName="books">
             <column name="updated_by_user_id" type="BIGINT">
-                <constraints foreignKeyName="fk_books_updated_by" referencedTableName="users" referencedColumnNames="id"/>
+                <constraints foreignKeyName="fk_books_updated_by" referencedTableName="users"
+                    referencedColumnNames="id" />
             </column>
         </addColumn>
         <addColumn tableName="categories">
             <column name="updated_by_user_id" type="BIGINT">
-                <constraints foreignKeyName="fk_categories_updated_by" referencedTableName="users" referencedColumnNames="id"/>
+                <constraints foreignKeyName="fk_categories_updated_by" referencedTableName="users"
+                    referencedColumnNames="id" />
             </column>
         </addColumn>
     </changeSet>
@@ -94,35 +99,37 @@
     <changeSet id="20260831-04-add-portal-access-to-roles" author="bookbe">
         <preConditions onFail="MARK_RAN">
             <not>
-                <columnExists tableName="roles" columnName="can_access_admin"/>
+                <columnExists tableName="roles" columnName="can_access_admin" />
             </not>
         </preConditions>
         <addColumn tableName="roles">
             <column name="can_access_admin" type="BOOLEAN" defaultValueBoolean="true">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
             <column name="can_access_user" type="BOOLEAN" defaultValueBoolean="true">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
         </addColumn>
     </changeSet>
 
     <changeSet id="20260831-05-update-client-role-portal-access" author="bookbe">
         <update tableName="roles">
-            <column name="can_access_admin" valueBoolean="false"/>
-            <column name="can_access_user" valueBoolean="true"/>
+            <column name="can_access_admin" valueBoolean="false" />
+            <column name="can_access_user"
+                valueBoolean="true" />
             <where>name = 'CLIENT'</where>
         </update>
         <update tableName="roles">
-            <column name="can_access_admin" valueBoolean="true"/>
-            <column name="can_access_user" valueBoolean="false"/>
+            <column name="can_access_admin" valueBoolean="true" />
+            <column name="can_access_user"
+                valueBoolean="false" />
             <where>name = 'ADMIN'</where>
         </update>
     </changeSet>
 
     <changeSet id="20260831-06-mark-system-roles" author="bookbe">
         <update tableName="roles">
-            <column name="is_system" valueBoolean="true"/>
+            <column name="is_system" valueBoolean="true" />
             <where>name IN ('SUPER_ADMIN', 'ADMIN', 'CLIENT')</where>
         </update>
     </changeSet>
@@ -130,18 +137,18 @@
     <changeSet id="20260831-07-create-revoked-token-table" author="bookbe">
         <preConditions onFail="MARK_RAN">
             <not>
-                <tableExists tableName="revoked_token"/>
+                <tableExists tableName="revoked_token" />
             </not>
         </preConditions>
         <createTable tableName="revoked_token">
             <column name="id" type="BIGINT" autoIncrement="true">
-                <constraints primaryKey="true" nullable="false"/>
+                <constraints primaryKey="true" nullable="false" />
             </column>
             <column name="token" type="VARCHAR(512)">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
             <column name="created_at" type="DATETIME">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
         </createTable>
     </changeSet>
@@ -149,36 +156,51 @@
     <changeSet id="20260903-08-add-token-invalid-before-to-users" author="bookbe">
         <preConditions onFail="MARK_RAN">
             <not>
-                <columnExists tableName="users" columnName="token_invalid_before"/>
+                <columnExists tableName="users" columnName="token_invalid_before" />
             </not>
         </preConditions>
         <addColumn tableName="users">
-            <column name="token_invalid_before" type="DATETIME"/>
+            <column name="token_invalid_before" type="DATETIME" />
         </addColumn>
     </changeSet>
 
     <changeSet id="20260907-09-add-borrow-fields-and-book-stock" author="bookbe">
         <preConditions onFail="MARK_RAN">
             <not>
-                <columnExists tableName="purchases" columnName="borrowed_at"/>
+                <columnExists tableName="purchases" columnName="borrowed_at" />
             </not>
         </preConditions>
         <addColumn tableName="purchases">
-            <column name="borrowed_at" type="DATETIME"/>
-            <column name="returned_at" type="DATETIME"/>
+            <column name="borrowed_at" type="DATETIME" />
+            <column name="returned_at" type="DATETIME" />
         </addColumn>
         <addColumn tableName="books">
             <column name="total_stock" type="INT" defaultValueNumeric="10">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
             <column name="available_stock" type="INT" defaultValueNumeric="10">
-                <constraints nullable="false"/>
+                <constraints nullable="false" />
             </column>
         </addColumn>
     </changeSet>
 
     <changeSet id="20260907-10-modify-purchase-status-column-type" author="bookbe">
-        <modifyDataType tableName="purchases" columnName="status" newDataType="VARCHAR(50)"/>
+        <modifyDataType tableName="purchases" columnName="status" newDataType="VARCHAR(50)" />
     </changeSet>
-
+    <changeSet id="20260908-11-add-enabled-to-users" author="bookbe">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="users" columnName="enabled" />
+            </not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="enabled" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+        <!-- Kích hoạt tất cả các user đã tồn tại trước đó -->
+        <update tableName="users">
+            <column name="enabled" valueBoolean="true" />
+        </update>
+    </changeSet>
 </databaseChangeLog>

@@ -251,3 +251,10 @@ export async function getBorrowHistory() {
 export const BorrowBook = borrowBook;
 export const ReturnBook = returnBook;
 export const GetMyBorrow = getMyBorrow;
+
+export async function verifyEmail(token) {
+  return to(axiosClient.get('/auth/verify-email', { params: { token } }));
+}
+export async function resendVerification(email) {
+  return to(axiosClient.post('/auth/resend-verification', { email }));
+}

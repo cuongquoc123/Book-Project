@@ -24,6 +24,9 @@ public class JwtTokenProvider {
     @Value("${app.jwt.reset-password-token-expiration-ms}")
     private long resetPasswordTokenExpirationMs;
 
+    @Value("${app.jwt.verify-mail-token-expiration-ms}")
+    private Long verifyMailTokenExprirationMS;
+
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
@@ -117,5 +120,29 @@ public class JwtTokenProvider {
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
+    }
+
+    public String GenerateVerifyEmailToken(String Email) {
+       Date now = new  Date();
+       Date experireDate = new  Date(now.getTime() + this.verifyMailTokenExprirationMS);
+
+       return Jwts.builder()
+                  .subject(Email)
+                  .claim("type", "EMAIL_VERIFICATION")
+                  .issuedAt(now)
+                  .expiration(experireDate)
+                  .signWith(this.getSigningKey())
+                  .compact();
+    }
+    public String getEmailFromVerificationToken(String token) {
+        Claims claims = Jwts.parser()
+                .verifyWith(getSigningKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
+        if (!"EMAIL_VERIFICATION".equals(claims.get("type"))) {
+            throw new IllegalArgumentException("Token không đúng loại xác thực tài khoản!");
+        }
+        return claims.getSubject();
     }
 }

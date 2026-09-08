@@ -59,7 +59,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<Map<String, Object>> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<Map<String, Object>> register(@RequestBody RegisterRequest request) throws MessagingException {
         User registeredUser = authService.register(request);
         Map<String, Object> response = Map.of(
                 "message", "Đăng ký tài khoản thành công!",
@@ -162,5 +162,20 @@ public class AuthController {
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
         authService.processResetPassword(request.getToken(),request.getNewPassword());
         return ResponseEntity.ok(Map.of("message","reset password thành công"));
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@org.springframework.web.bind.annotation.RequestParam("token") String token) {
+        authService.processVerifyEmail(token);
+        return ResponseEntity.ok(Map.of("message", "Tài khoản của bạn đã được kích hoạt thành công! Hãy đăng nhập ngay."));
+    }
+    @PostMapping("/resend-verification")
+    public ResponseEntity<?> resendVerification(@RequestBody Map<String, String> payload) throws MessagingException {
+        String email = payload.get("email");
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng cung cấp email!");
+        }
+        authService.processResendVerification(email);
+        return ResponseEntity.ok(Map.of("message", "Đã gửi lại email kích hoạt. Vui lòng kiểm tra hộp thư!"));
     }
 }

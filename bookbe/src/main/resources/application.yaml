@@ -61,6 +61,7 @@ app:
     access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
     refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:86400000}
     reset-password-token-expiration-ms: ${JWT_RESET_PASSWROD_EXPIRATION_MS:900000}
+    verify-mail-token-expiration-ms: ${JWT_VERIFY_MAIL:900000}
   
   rate-limit:
     token:

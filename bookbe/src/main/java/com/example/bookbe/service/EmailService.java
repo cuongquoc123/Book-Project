@@ -51,4 +51,37 @@ public class EmailService {
         helper.setText(htmlContent, true);
         mailSender.send(message);
     }
+
+
+    public  void  sendVerifyEmail(String toEmail, String verifyLink) throws MessagingException {
+         MimeMessage message = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+        helper.setTo(toEmail);
+        helper.setSubject("Xác thực tài khoản của bạn - Athenaeum");
+        String fullVerifyLink = verifyLink;
+        if (!fullVerifyLink.startsWith("http://") && !fullVerifyLink.startsWith("https://")) {
+            fullVerifyLink = "http://" + fullVerifyLink;
+        }
+        String htmlContent = """
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+                    <h2 style="color: #059669;">Chào mừng bạn đến với Athenaeum!</h2>
+                    <p>Xin chào,</p>
+                    <p>Cảm ơn bạn đã tạo tài khoản. Vui lòng bấm vào nút bên dưới để hoàn tất xác thực email và kích hoạt tài khoản:</p>
+                    
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="%1$s" target="_blank" style="background-color: #059669; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                            Kích hoạt tài khoản
+                        </a>
+                    </div>
+                    
+                    <p style="color: #64748b; font-size: 0.875rem;">Liên kết này có hiệu lực trong vòng 24 giờ.</p>
+                    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+                    <p style="color: #64748b; font-size: 0.875rem;">Nếu bạn không thực hiện đăng ký này, vui lòng bỏ qua email.</p>
+                </div>
+                """
+                .formatted(fullVerifyLink);
+        LoggerUtil.inform("Verification link: " + fullVerifyLink);
+        helper.setText(htmlContent, true);
+        mailSender.send(message);  
+    }
 }

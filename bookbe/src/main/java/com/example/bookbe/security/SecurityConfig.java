@@ -69,7 +69,9 @@ public class SecurityConfig {
                                 "/api/auth/refresh",
                                 "/api/auth/logout", "/uploads/**",
                                 "/api/upload/**", "/api/auth/forgot-password",
-                                "/api/auth/reset-password")
+                                "/api/auth/reset-password",
+                                "/api/auth/verify-email", 
+                                "/api/auth/resend-verification")
                         .permitAll()
                         // 2. Yêu cầu đã đăng nhập cho thông tin cá nhân
                         .requestMatchers("/api/auth/me").authenticated()

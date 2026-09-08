@@ -95,7 +95,13 @@ export default function ClientLogin() {
       if (err) {
         setAlert({ type: 'error', message: err });
       } else {
-        setAlert({ type: 'success', message: 'Đăng ký thành công! Hãy đăng nhập bằng tài khoản mới.' });
+        setAlert({
+          type: 'success',
+          message: `Đăng ký tài khoản thành công! Chúng tôi đã gửi email kích hoạt tới ${email}. Vui lòng kiểm tra hộp thư để kích hoạt tài khoản trước khi đăng nhập.`,
+        });
+        if (usernameRef.current) usernameRef.current.value = '';
+        if (emailRef.current) emailRef.current.value = '';
+        if (passwordRef.current) passwordRef.current.value = '';
         setActiveTab('login');
       }
     }

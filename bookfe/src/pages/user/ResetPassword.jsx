@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
 import { resetPassword } from '../../services/api';
@@ -11,8 +11,8 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const token = searchParams.get('token');
 
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const newPasswordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState({ type: '', message: '' });
@@ -20,6 +20,9 @@ export default function ResetPassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setAlert({ type: '', message: '' });
+
+    const newPassword = newPasswordRef.current?.value || '';
+    const confirmPassword = confirmPasswordRef.current?.value || '';
 
     if (!token) {
       setAlert({ type: 'error', message: 'Liên kết đặt lại mật khẩu không hợp lệ hoặc thiếu token!' });
@@ -72,8 +75,7 @@ export default function ResetPassword() {
               <FormInput
                 label="Mật khẩu mới"
                 type={showPassword ? 'text' : 'password'}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                inputRef={newPasswordRef}
                 icon={Lock}
                 placeholder="Tối thiểu 6 ký tự"
                 required
@@ -87,8 +89,7 @@ export default function ResetPassword() {
               <FormInput
                 label="Xác nhận mật khẩu mới"
                 type={showPassword ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                inputRef={confirmPasswordRef}
                 icon={Lock}
                 placeholder="Nhập lại mật khẩu mới"
                 required

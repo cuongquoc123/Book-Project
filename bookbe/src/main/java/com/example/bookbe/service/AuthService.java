@@ -28,7 +28,6 @@ import com.example.bookbe.repository.RoleRepository;
 import com.example.bookbe.repository.UserRepository;
 import com.example.bookbe.utils.JwtTokenProvider;
 
-
 import jakarta.mail.MessagingException;
 
 import java.time.LocalDateTime;
@@ -70,7 +69,7 @@ public class AuthService {
     }
 
     @Transactional
-    public User register(RegisterRequest request) {
+    public User register(RegisterRequest request) throws MessagingException {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new IllegalArgumentException("Username đã tồn tại!");
         }
@@ -88,9 +87,13 @@ public class AuthService {
                 .email(request.getEmail())
                 .fullName(request.getFullname())
                 .role(clientRole)
+                .enabled(false)
                 .build();
-
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        String token = jwtTokenProvider.GenerateVerifyEmailToken(savedUser.getEmail());
+        String verifyLink = frontEndUR + "/verify-email?token=" + token;
+        emailService.sendVerifyEmail(savedUser.getEmail(), verifyLink);
+        return savedUser;
     }
 
     @Transactional
@@ -113,6 +116,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .fullName(request.getFullname())
                 .role(roleEntity)
+                .enabled(true)
                 .build();
 
         return userRepository.save(user);
@@ -124,7 +128,9 @@ public class AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .or(() -> userRepository.findByEmail(request.getUsername()))
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại!"));
-
+        if (!user.isEnabled()) {
+            throw new IllegalArgumentException("Tài khoản chưa được kích hoạt qua email. Vui lòng kiểm tra hộp thư email của bạn!");
+        }
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword()));
         String roleStr = user.getRole() != null ? user.getRole().getName() : "CLIENT";
@@ -358,5 +364,27 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản tương ứng!"));
         user.setPassword(passwordEncoder.encode(newPassword.trim()));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public void processVerifyEmail(String token) {
+        String email = jwtTokenProvider.getEmailFromVerificationToken(token);
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản tương ứng với mã xác thực!"));
+        if (user.isEnabled()) {
+            return; // Tài khoản đã kích hoạt, không cần kích hoạt lại và không báo lỗi
+        }
+        user.setEnabled(true);
+        userRepository.save(user);
+    }
+    public void processResendVerification(String email) throws MessagingException {
+        User user = userRepository.findByEmail(email.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Email chưa được đăng ký tài khoản!"));
+        if (user.isEnabled()) {
+            throw new IllegalArgumentException("Tài khoản này đã được kích hoạt. Bạn có thể đăng nhập ngay!");
+        }
+        String token = jwtTokenProvider.GenerateVerifyEmailToken(user.getEmail());
+        String verifyLink = frontEndUR + "/verify-email?token=" + token;
+        emailService.sendVerifyEmail(user.getEmail(), verifyLink);
     }
 }
