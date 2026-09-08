@@ -40,9 +40,15 @@ public class CustomUserDetailService implements UserDetailsService {
             }
         }
 
+        boolean isEnabled = user.isEnabled() && user.isEmailVerified();
+
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),
+                isEnabled,
+                true,
+                true,
+                true,
                 authorities
         );
     }

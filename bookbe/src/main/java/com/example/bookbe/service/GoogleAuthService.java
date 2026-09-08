@@ -66,9 +66,17 @@ public class GoogleAuthService {
             newUser.setUsername(email.split("@")[0] + "_" + UUID.randomUUID().toString().substring(0, 4));
             newUser.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
             newUser.setRole(clientRole);
+            newUser.setEmailVerified(true);
             newUser.setEnabled(true);
             return userRepository.save(newUser);
         });
+
+        if (!user.isEmailVerified()) {
+            throw new IllegalArgumentException("Tài khoản chưa được kích hoạt qua email!");
+        }
+        if (!user.isEnabled()) {
+            throw new IllegalArgumentException("Tài khoản của bạn đã bị vô hiệu hóa hoặc khóa. Vui lòng liên hệ quản trị viên!");
+        }
 
         String roleStr = user.getRole() != null ? user.getRole().getName() : "CLIENT";
         String roleDisplayName = user.getRole() != null ? user.getRole().getDisplayName() : roleStr;

@@ -68,6 +68,16 @@ public class User {
         this.enabled = enabled;
     }
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

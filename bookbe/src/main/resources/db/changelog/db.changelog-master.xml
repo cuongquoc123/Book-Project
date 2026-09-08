@@ -203,4 +203,22 @@
             <column name="enabled" valueBoolean="true" />
         </update>
     </changeSet>
+
+    <changeSet id="20260908-12-add-email-verified-to-users" author="bookbe">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <columnExists tableName="users" columnName="email_verified" />
+            </not>
+        </preConditions>
+        <addColumn tableName="users">
+            <column name="email_verified" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false" />
+            </column>
+        </addColumn>
+        <!-- Kích hoạt tất cả các user đã tồn tại trước đó -->
+        <update tableName="users">
+            <column name="email_verified" valueBoolean="true" />
+            <where>enabled = true</where>
+        </update>
+    </changeSet>
 </databaseChangeLog>

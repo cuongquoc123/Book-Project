@@ -87,6 +87,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .fullName(request.getFullname())
                 .role(clientRole)
+                .emailVerified(false)
                 .enabled(false)
                 .build();
         User savedUser = userRepository.save(user);
@@ -116,6 +117,7 @@ public class AuthService {
                 .email(request.getEmail())
                 .fullName(request.getFullname())
                 .role(roleEntity)
+                .emailVerified(true)
                 .enabled(true)
                 .build();
 
@@ -128,8 +130,11 @@ public class AuthService {
         User user = userRepository.findByUsername(request.getUsername())
                 .or(() -> userRepository.findByEmail(request.getUsername()))
                 .orElseThrow(() -> new IllegalArgumentException("Người dùng không tồn tại!"));
-        if (!user.isEnabled()) {
+        if (!user.isEmailVerified()) {
             throw new IllegalArgumentException("Tài khoản chưa được kích hoạt qua email. Vui lòng kiểm tra hộp thư email của bạn!");
+        }
+        if (!user.isEnabled()) {
+            throw new IllegalArgumentException("Tài khoản của bạn đã bị vô hiệu hóa hoặc khóa. Vui lòng liên hệ quản trị viên!");
         }
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(user.getUsername(), request.getPassword()));
@@ -179,6 +184,13 @@ public class AuthService {
         refreshToken = refreshTokenService.verifyExpiration(refreshToken);
         User user = refreshToken.getUser();
 
+        if (!user.isEmailVerified()) {
+            throw new RefreshTokenException("Tài khoản chưa được kích hoạt qua email!");
+        }
+        if (!user.isEnabled()) {
+            throw new RefreshTokenException("Tài khoản đã bị vô hiệu hóa hoặc khóa!");
+        }
+
         // Soft delete token cũ khi đã được sử dụng
         refreshTokenService.deleteByToken(refreshTokenStr);
 
@@ -203,6 +215,10 @@ public class AuthService {
     public Map<String, Object> getCurrentUser(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy người dùng: " + username));
+
+        if (!user.isEmailVerified() || !user.isEnabled()) {
+            throw new AccessDeniedException("Tài khoản chưa được kích hoạt qua email hoặc đã bị khóa!");
+        }
 
         Set<String> permissionNames = user.getRole() != null && user.getRole().getPermissions() != null
                 ? user.getRole().getPermissions().stream()
@@ -278,6 +294,13 @@ public class AuthService {
                 .orElseThrow(
                         () -> new IllegalArgumentException("Không tìm thấy người dùng hiện tại: " + currentUsername));
 
+        if (!currentUser.isEmailVerified()) {
+            throw new AccessDeniedException("Tài khoản chưa được kích hoạt qua email!");
+        }
+        if (!currentUser.isEnabled()) {
+            throw new AccessDeniedException("Tài khoản đã bị vô hiệu hóa hoặc khóa!");
+        }
+
         boolean isSuperAdmin = currentUser.isSuperAdmin();
 
         User targetUser;
@@ -351,7 +374,13 @@ public class AuthService {
     public void processForgotPassword(String email) throws MessagingException {
 
         User user = userRepository.findByEmail(email.trim())
-                .orElseThrow(() -> new IllegalArgumentException("email chưa được liên kết tài khoản"));
+                .orElseThrow(() -> new IllegalArgumentException("Email chưa được liên kết tài khoản!"));
+        if (!user.isEmailVerified()) {
+            throw new IllegalArgumentException("Tài khoản chưa được kích hoạt qua email. Vui lòng kiểm tra hộp thư email của bạn!");
+        }
+        if (!user.isEnabled()) {
+            throw new IllegalArgumentException("Tài khoản của bạn đã bị vô hiệu hóa hoặc khóa. Vui lòng liên hệ quản trị viên!");
+        }
         String resetToken = jwtTokenProvider.generateResetPasswordToken(user.getEmail());
         String resetLink = frontEndUR + "/reset-password?token=" + resetToken;
         emailService.sendEmailResetPassword(email, resetLink);
@@ -362,6 +391,12 @@ public class AuthService {
         String email = jwtTokenProvider.getEmailFromResetToken(token);
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản tương ứng!"));
+        if (!user.isEmailVerified()) {
+            throw new IllegalArgumentException("Tài khoản chưa được kích hoạt qua email!");
+        }
+        if (!user.isEnabled()) {
+            throw new IllegalArgumentException("Tài khoản của bạn đã bị vô hiệu hóa hoặc khóa. Vui lòng liên hệ quản trị viên!");
+        }
         user.setPassword(passwordEncoder.encode(newPassword.trim()));
         userRepository.save(user);
     }
@@ -371,16 +406,17 @@ public class AuthService {
         String email = jwtTokenProvider.getEmailFromVerificationToken(token);
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản tương ứng với mã xác thực!"));
-        if (user.isEnabled()) {
+        if (user.isEmailVerified()) {
             return; // Tài khoản đã kích hoạt, không cần kích hoạt lại và không báo lỗi
         }
+        user.setEmailVerified(true);
         user.setEnabled(true);
         userRepository.save(user);
     }
     public void processResendVerification(String email) throws MessagingException {
         User user = userRepository.findByEmail(email.trim())
                 .orElseThrow(() -> new IllegalArgumentException("Email chưa được đăng ký tài khoản!"));
-        if (user.isEnabled()) {
+        if (user.isEmailVerified()) {
             throw new IllegalArgumentException("Tài khoản này đã được kích hoạt. Bạn có thể đăng nhập ngay!");
         }
         String token = jwtTokenProvider.GenerateVerifyEmailToken(user.getEmail());

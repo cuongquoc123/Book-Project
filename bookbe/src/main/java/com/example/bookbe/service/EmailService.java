@@ -74,7 +74,7 @@ public class EmailService {
                         </a>
                     </div>
                     
-                    <p style="color: #64748b; font-size: 0.875rem;">Liên kết này có hiệu lực trong vòng 24 giờ.</p>
+                    <p style="color: #64748b; font-size: 0.875rem;">Liên kết này có hiệu lực trong vòng 15 phút.</p>
                     <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
                     <p style="color: #64748b; font-size: 0.875rem;">Nếu bạn không thực hiện đăng ký này, vui lòng bỏ qua email.</p>
                 </div>

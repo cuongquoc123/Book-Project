@@ -45,6 +45,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter  {
             String username = jwtTokenProvider.getUsernameFromToken(token);
             if (StringUtils.hasText(username)) {
                 userRepository.findByUsername(username).ifPresent(user -> {
+                    if (!user.isEnabled() || !user.isEmailVerified()) {
+                        return;
+                    }
+
                     Date issuedAt = jwtTokenProvider.getIssuedAt(token);
                     boolean isInvalidated = false;
                     if (user.getTokenInvalidBefore() != null && issuedAt != null) {

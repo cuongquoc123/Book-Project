@@ -174,6 +174,7 @@ public class DataInitializer implements CommandLineRunner {
                     .email("supper@example.com")
                     .fullName("Super Admin")
                     .role(superAdminRole)
+                    .emailVerified(true)
                     .enabled(true)
                     .build();
 
