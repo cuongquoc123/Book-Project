@@ -10,7 +10,7 @@ export default function ProtectedRoute({
   requireSuperAdmin = false,
 }) {
   if (!isAuthenticated()) {
-    const isOnlyAdmin = allowedRoles && !allowedRoles.includes('CLIENT');
+    const isOnlyAdmin = portal === 'ADMIN' || (allowedRoles && !allowedRoles.includes('CLIENT'));
     return <Navigate to={isOnlyAdmin ? '/admin/login' : '/login'} replace />;
   }
 
@@ -31,21 +31,20 @@ export default function ProtectedRoute({
     return <Navigate to="/dashboard" replace />;
   }
 
-  // Check allowed roles
-  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    if (user.role === 'CLIENT') {
-      return <Navigate to="/home" replace />;
-    }
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // 1. If this is an Admin route (portal is ADMIN or allowedRoles does not include CLIENT)
+  // 1. If this is an Admin route (portal is ADMIN)
   const isAdminPortal = portal === 'ADMIN' || (allowedRoles && !allowedRoles.includes('CLIENT'));
   if (isAdminPortal) {
-    if (user.canAccessAdmin === false) {
+    // Check if user is forbidden from admin portal
+    if (user.canAccessAdmin === false || user.role === 'CLIENT') {
       return <Navigate to="/home" replace />;
     }
 
+    // If specific allowed roles are explicitly required and user doesn't match
+    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      return <Navigate to="/dashboard" replace />;
+    }
+
+    // Check granular resource permission
     if (requiredPermPrefix && !hasResourcePermission(user, requiredPermPrefix)) {
       return <Navigate to="/dashboard" replace />;
     }
@@ -53,13 +52,26 @@ export default function ProtectedRoute({
     return children ? children : <Outlet />;
   }
 
-  // 2. If this is a User route (portal is USER or allowedRoles includes CLIENT)
+  // 2. If this is a User route (portal is USER)
   const isUserPortal = portal === 'USER' || (allowedRoles && allowedRoles.includes('CLIENT'));
   if (isUserPortal) {
     if (user.canAccessUser === false) {
       return <Navigate to="/dashboard" replace />;
     }
+
+    if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+      return <Navigate to="/dashboard" replace />;
+    }
+
     return children ? children : <Outlet />;
+  }
+
+  // Fallback for general routes
+  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    if (user.role === 'CLIENT') {
+      return <Navigate to="/home" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children ? children : <Outlet />;

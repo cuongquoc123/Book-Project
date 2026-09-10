@@ -27,7 +27,7 @@ import {
   getGroupedPermissions,
 } from '../../services/api';
 import { setAuthData } from '../../utils/auth';
-import AdminHeader from './AdminHeader';
+import AdminHeader from '../../components/AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/dashboard.css';
 
@@ -45,6 +45,7 @@ export default function RoleManagement() {
   const [isEditing, setIsEditing] = useState(false);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [editingRoleId, setEditingRoleId] = useState(null);
+  const [roleFormError, setRoleFormError] = useState('');
 
   // Form State
   const [formData, setFormData] = useState({
@@ -58,6 +59,7 @@ export default function RoleManagement() {
 
   // Delete Confirmation Modal State
   const [deletingRole, setDeletingRole] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
 
   // Load User and Role Data
   useEffect(() => {
@@ -138,6 +140,7 @@ export default function RoleManagement() {
     setIsEditing(false);
     setIsReadOnly(false);
     setEditingRoleId(null);
+    setRoleFormError('');
     setFormData({
       name: '',
       displayName: '',
@@ -154,6 +157,7 @@ export default function RoleManagement() {
     setIsEditing(!readOnly);
     setIsReadOnly(readOnly);
     setEditingRoleId(role.id);
+    setRoleFormError('');
     setFormData({
       name: role.name || '',
       displayName: role.displayName || role.name || '',
@@ -213,9 +217,10 @@ export default function RoleManagement() {
   const handleSubmitRole = async (e) => {
     e.preventDefault();
     if (isReadOnly) return;
+    setRoleFormError('');
 
     if (!formData.name.trim() && !isEditing) {
-      showNotification('Vui lòng nhập tên mã Role!', 'error');
+      setRoleFormError('Vui lòng nhập tên mã Role!');
       return;
     }
 
@@ -231,18 +236,20 @@ export default function RoleManagement() {
     if (isEditing) {
       const [err] = await updateRole(editingRoleId, payload);
       if (err) {
-        showNotification(err, 'error');
+        setRoleFormError(err);
       } else {
         showNotification('Cập nhật Custom Role thành công!', 'success');
+        setRoleFormError('');
         setShowModal(false);
         loadRolesAndPermissions();
       }
     } else {
       const [err] = await createRole(payload);
       if (err) {
-        showNotification(err, 'error');
+        setRoleFormError(err);
       } else {
         showNotification('Tạo Custom Role mới thành công!', 'success');
+        setRoleFormError('');
         setShowModal(false);
         loadRolesAndPermissions();
       }
@@ -252,14 +259,15 @@ export default function RoleManagement() {
   // Delete Role Handler
   const handleConfirmDelete = async () => {
     if (!deletingRole) return;
+    setDeleteError('');
     const [err] = await deleteRole(deletingRole.id);
     if (err) {
-      showNotification(err, 'error');
+      setDeleteError(err);
     } else {
       showNotification(`Xóa Custom Role '${deletingRole.displayName || deletingRole.name}' thành công!`, 'success');
+      setDeletingRole(null);
       loadRolesAndPermissions();
     }
-    setDeletingRole(null);
   };
 
   return (
@@ -517,6 +525,7 @@ export default function RoleManagement() {
 
               <form onSubmit={handleSubmitRole}>
                 <div className="modal-body" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+                  <AlertToast type="error" message={roleFormError} />
                   {/* Basic Info */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
@@ -791,6 +800,7 @@ export default function RoleManagement() {
               </div>
 
               <div className="modal-body" style={{ textAlign: 'center', padding: '1.5rem 1rem' }}>
+                <AlertToast type="error" message={deleteError} />
                 <p style={{ fontSize: '0.95rem', color: '#334155', lineHeight: '1.5' }}>
                   Bạn có chắc chắn muốn xóa Custom Role <strong>'{deletingRole.displayName || deletingRole.name}'</strong>?
                 </p>

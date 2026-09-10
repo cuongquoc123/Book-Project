@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, FolderTree, Users, LogOut, User, Crown, ShieldCheck, BookmarkCheck } from 'lucide-react';
-import { logoutUser } from '../../services/api';
-import { clearAuth, getRefreshToken, getUser, hasResourcePermission } from '../../utils/auth';
+import { logoutUser } from '../services/api';
+import { clearAuth, getRefreshToken, getUser, hasResourcePermission } from '../utils/auth';
 
 export default function AdminHeader({ currentUser }) {
   const navigate = useNavigate();
@@ -14,7 +14,10 @@ export default function AdminHeader({ currentUser }) {
   const canManageCategories = useMemo(() => hasResourcePermission(user, 'CATEGORY'), [user]);
   const canManageRoles = useMemo(() => hasResourcePermission(user, 'ROLE'), [user]);
   const canManageUsers = useMemo(() => isSuperAdmin || hasResourcePermission(user, 'USER'), [user, isSuperAdmin]);
-  const canManageBorrows = useMemo(() => isSuperAdmin || user.role === 'ADMIN' || hasResourcePermission(user, 'BOOK') || hasResourcePermission(user, 'PURCHASE'), [user, isSuperAdmin]);
+  const canManageBorrows = useMemo(
+    () => isSuperAdmin || user.role === 'ADMIN' || hasResourcePermission(user, 'BOOK') || hasResourcePermission(user, 'PURCHASE') || hasResourcePermission(user, 'ROLE') || user.canAccessAdmin !== false,
+    [user, isSuperAdmin]
+  );
 
   const handleLogout = async () => {
     const refreshToken = getRefreshToken();

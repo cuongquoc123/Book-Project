@@ -1,5 +1,6 @@
 package com.example.bookbe.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -65,9 +66,26 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorRespone> handlerMessagingException(MessagingException ex) {
         ErrorRespone respone = new ErrorRespone(
             HttpStatus.INTERNAL_SERVER_ERROR.value()
-            , "Không thể gửi email: Vui lòng kiểm tra lại địa chỉ email hoặc cấu hình mail server!"
+            , "Không thể gửi email: do email hoặc mail server!"
         );
         return new ResponseEntity<>(respone,HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public  ResponseEntity<ErrorRespone> handlerDataIntegrityViolationException(DataIntegrityViolationException ex) {
+        ErrorRespone respone = new  ErrorRespone(
+            HttpStatus.CONFLICT.value()
+            , "Không thể xóa dữ liệu đã ràng buộc");
+            return  new  ResponseEntity<>(respone,HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(IllegalStateException.class) 
+    public ResponseEntity<ErrorRespone> handlerIllegalStateException(IllegalStateException ex) {
+        ErrorRespone respone = new  ErrorRespone(
+            HttpStatus.CONFLICT.value()
+            , ex.getMessage());
+        
+            return new  ResponseEntity<>(respone,HttpStatus.CONFLICT);
     }
 
     @ExceptionHandler(Exception.class)

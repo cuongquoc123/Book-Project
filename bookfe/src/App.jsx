@@ -32,7 +32,7 @@ export default function App() {
         <Route
           path="/home"
           element={
-            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']} portal="USER">
+            <ProtectedRoute portal="USER">
               <UserHome />
             </ProtectedRoute>
           }
@@ -41,7 +41,7 @@ export default function App() {
         <Route
           path="/profile"
           element={
-            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']} portal="USER">
+            <ProtectedRoute portal="USER">
               <UserProfile />
             </ProtectedRoute>
           }
@@ -50,7 +50,7 @@ export default function App() {
         <Route
           path="/my-borrows"
           element={
-            <ProtectedRoute allowedRoles={['CLIENT', 'ADMIN', 'SUPER_ADMIN']} portal="USER">
+            <ProtectedRoute portal="USER">
               <UserBorrowHistory />
             </ProtectedRoute>
           }
@@ -63,7 +63,7 @@ export default function App() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN">
+            <ProtectedRoute portal="ADMIN">
               <AdminDashboard />
             </ProtectedRoute>
           }
@@ -72,7 +72,7 @@ export default function App() {
         <Route
           path="/admin/books"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="BOOK_">
+            <ProtectedRoute portal="ADMIN" requiredPermPrefix="BOOK">
               <BookManagement />
             </ProtectedRoute>
           }
@@ -81,7 +81,7 @@ export default function App() {
         <Route
           path="/admin/categories"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="CATEGORY_">
+            <ProtectedRoute portal="ADMIN" requiredPermPrefix="CATEGORY">
               <CategoryManagement />
             </ProtectedRoute>
           }
@@ -90,7 +90,7 @@ export default function App() {
         <Route
           path="/admin/borrows"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN">
+            <ProtectedRoute portal="ADMIN">
               <BorrowManagement />
             </ProtectedRoute>
           }
@@ -99,7 +99,7 @@ export default function App() {
         <Route
           path="/admin/roles"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="ROLE_">
+            <ProtectedRoute portal="ADMIN" requiredPermPrefix="ROLE">
               <RoleManagement />
             </ProtectedRoute>
           }
@@ -109,7 +109,7 @@ export default function App() {
         <Route
           path="/admin/users"
           element={
-            <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} portal="ADMIN" requiredPermPrefix="USER_">
+            <ProtectedRoute portal="ADMIN" requiredPermPrefix="USER">
               <EmployeeManagement />
             </ProtectedRoute>
           }

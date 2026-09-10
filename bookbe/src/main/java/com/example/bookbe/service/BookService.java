@@ -1,5 +1,6 @@
 package com.example.bookbe.service;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -178,18 +179,34 @@ public class BookService {
         }
 
         Long activeBorrowId = null;
+        String userBorrowStatus = null;
         if (currentUser != null) {
-            Optional<Purchase> activeBorrow = purchaseRepository.findByUserIdAndBookIdAndStatus(
-                    currentUser.getId(), book.getId(), PurchaseStatus.BORROWED);
-            if (activeBorrow.isPresent()) {
-                isPurchased = true; // Coi như có quyền đọc
-                activeBorrowId = activeBorrow.get().getId();
-                notice = "Bạn đang mượn cuốn sách này.";
+            Optional<Purchase> userBorrow = purchaseRepository.findFirstByUserIdAndBookIdAndStatusInOrderByCreatedAtDesc(
+                    currentUser.getId(), book.getId(), List.of(PurchaseStatus.PENDING, PurchaseStatus.BORROWED));
+            if (userBorrow.isPresent()) {
+                Purchase p = userBorrow.get();
+                activeBorrowId = p.getId();
+                userBorrowStatus = p.getStatus().name();
+                if (p.getStatus() == PurchaseStatus.BORROWED) {
+                    isPurchased = true; // Coi như có quyền đọc
+                    notice = "Đang mượn - Bạn có quyền đọc toàn bộ nội dung cuốn sách này.";
+                } else if (p.getStatus() == PurchaseStatus.PENDING) {
+                    notice = "Đang chờ duyệt - Đơn mượn cuốn sách này của bạn đang chờ Ban Quản Trị phê duyệt.";
+                }
             }
         }
 
         Integer totalStock = book.getTotalStock() != null ? book.getTotalStock() : 10;
         Integer availableStock = book.getAvailableStock() != null ? book.getAvailableStock() : totalStock;
+        
+        // Số lượng sách được mượn là 50% tổng số sách, làm tròn xuống (ví dụ 5 * 50% = 2)
+        int maxBorrowable = (int) Math.floor(totalStock * 0.5);
+        long currentlyBorrowed = purchaseRepository.countByBookIdAndStatusIn(
+                book.getId(),
+                List.of(PurchaseStatus.PENDING, PurchaseStatus.BORROWED)
+        );
+        int borrowedCount = (int) currentlyBorrowed;
+        int remainingBorrowable = Math.max(0, maxBorrowable - borrowedCount);
 
         return BookResponse.builder()
                 .id(book.getId())
@@ -209,7 +226,11 @@ public class BookService {
                 .isPurchased(isPurchased)
                 .totalStock(totalStock)
                 .availableStock(availableStock)
+                .maxBorrowable(maxBorrowable)
+                .borrowedCount(borrowedCount)
+                .remainingBorrowable(remainingBorrowable)
                 .activeBorrowId(activeBorrowId)
+                .userBorrowStatus(userBorrowStatus)
                 .hasFullAccess(hasFullAccess)
                 .notice(notice)
                 .build();

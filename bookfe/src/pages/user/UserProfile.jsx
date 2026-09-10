@@ -31,6 +31,8 @@ export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('info'); // 'info' | 'edit' | 'password'
   const [alert, setAlert] = useState({ type: '', message: '' });
+  const [profileAlert, setProfileAlert] = useState({ type: '', message: '' });
+  const [passwordAlert, setPasswordAlert] = useState({ type: '', message: '' });
 
   // Form states for Edit Profile & Change Password
   const [editForm, setEditForm] = useState({ fullName: '', email: '' });
@@ -89,7 +91,7 @@ export default function UserProfile() {
 
   const handleSaveProfileNotice = (e) => {
     e.preventDefault();
-    setAlert({
+    setProfileAlert({
       type: 'info',
       message: 'ℹ️ Chức năng cập nhật profile chưa được Backend triển khai API (PUT /api/auth/profile). Bạn cần bổ sung API này ở Backend sau.',
     });
@@ -97,26 +99,26 @@ export default function UserProfile() {
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    setAlert({ type: '', message: '' });
+    setPasswordAlert({ type: '', message: '' });
 
     if (!passwordForm.oldPassword.trim()) {
-      setAlert({ type: 'error', message: 'Vui lòng nhập mật khẩu hiện tại!' });
+      setPasswordAlert({ type: 'error', message: 'Vui lòng nhập mật khẩu hiện tại!' });
       return;
     }
     if (!passwordForm.newPassword.trim()) {
-      setAlert({ type: 'error', message: 'Vui lòng nhập mật khẩu mới!' });
+      setPasswordAlert({ type: 'error', message: 'Vui lòng nhập mật khẩu mới!' });
       return;
     }
     if (passwordForm.newPassword.length < 6) {
-      setAlert({ type: 'error', message: 'Mật khẩu mới phải có độ dài tối thiểu 6 ký tự!' });
+      setPasswordAlert({ type: 'error', message: 'Mật khẩu mới phải có độ dài tối thiểu 6 ký tự!' });
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setAlert({ type: 'error', message: 'Mật khẩu mới và nhập lại mật khẩu không khớp!' });
+      setPasswordAlert({ type: 'error', message: 'Mật khẩu mới và nhập lại mật khẩu không khớp!' });
       return;
     }
     if (passwordForm.oldPassword === passwordForm.newPassword) {
-      setAlert({ type: 'error', message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại!' });
+      setPasswordAlert({ type: 'error', message: 'Mật khẩu mới không được trùng với mật khẩu hiện tại!' });
       return;
     }
 
@@ -130,10 +132,10 @@ export default function UserProfile() {
     setSubmittingPassword(false);
 
     if (err) {
-      setAlert({ type: 'error', message: err });
+      setPasswordAlert({ type: 'error', message: err });
     } else {
       const isLoggedOut = passwordForm.logoutAllClients;
-      setAlert({
+      setPasswordAlert({
         type: 'success',
         message: data?.message || (isLoggedOut 
           ? 'Đổi mật khẩu thành công! Toàn bộ các phiên đăng nhập khác đã được đăng xuất. Đang chuyển hướng...' 
@@ -506,6 +508,7 @@ export default function UserProfile() {
               </div>
 
               <form onSubmit={handleSaveProfileNotice} style={{ maxWidth: '540px' }}>
+                <AlertToast type={profileAlert.type} message={profileAlert.message} />
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.4rem', color: '#334155' }}>
                     Họ và Tên
@@ -593,6 +596,7 @@ export default function UserProfile() {
               </div>
 
               <form onSubmit={handleChangePassword} style={{ maxWidth: '580px' }}>
+                <AlertToast type={passwordAlert.type} message={passwordAlert.message} />
                 {/* Mật khẩu hiện tại */}
                 <div style={{ marginBottom: '1.25rem' }}>
                   <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.4rem', color: '#334155' }}>

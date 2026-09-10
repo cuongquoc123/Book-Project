@@ -38,7 +38,11 @@ public class BookResponse {
 
     private Integer totalStock;
     private Integer availableStock;
+    private Integer maxBorrowable;
+    private Integer borrowedCount;
+    private Integer remainingBorrowable;
     private Long activeBorrowId;
+    private String userBorrowStatus; // "PENDING", "BORROWED", or null
 
     public Long getId() {
         return id;

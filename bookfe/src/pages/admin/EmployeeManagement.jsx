@@ -31,7 +31,7 @@ import {
   changePassword,
 } from '../../services/api';
 import { getUser, setAuthData, hasResourcePermission } from '../../utils/auth';
-import AdminHeader from './AdminHeader';
+import AdminHeader from '../../components/AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import FormInput from '../../components/FormInput';
 import '../../styles/dashboard.css';
@@ -46,8 +46,9 @@ export default function EmployeeManagement() {
   const [updatingUserId, setUpdatingUserId] = useState(null);
   const [updatingStatusUserId, setUpdatingStatusUserId] = useState(null);
 
-  // Modal State for Creating Admin Account
+  // Modal State for adding new employee / admin
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addFormError, setAddFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -58,6 +59,7 @@ export default function EmployeeManagement() {
 
   // Modal State for Super Admin Resetting/Changing Password of any user
   const [showPassModal, setShowPassModal] = useState(false);
+  const [passFormError, setPassFormError] = useState('');
   const [selectedUserForPass, setSelectedUserForPass] = useState(null);
   const [passFormData, setPassFormData] = useState({
     newPassword: '',
@@ -136,8 +138,9 @@ export default function EmployeeManagement() {
 
   const handleCreateAdmin = async (e) => {
     e.preventDefault();
+    setAddFormError('');
     if (!formData.username.trim() || !formData.password.trim() || !formData.email.trim()) {
-      setAlert({ type: 'error', message: 'Vui lòng điền đầy đủ Tên đăng nhập, Mật khẩu và Email!' });
+      setAddFormError('Vui lòng điền đầy đủ Tên đăng nhập, Mật khẩu và Email!');
       return;
     }
 
@@ -152,13 +155,14 @@ export default function EmployeeManagement() {
     setSubmitting(false);
 
     if (err) {
-      setAlert({ type: 'error', message: err });
+      setAddFormError(err);
     } else {
       setAlert({
         type: 'success',
         message: `Tạo tài khoản Quản trị viên (ADMIN) '${formData.username}' thành công!`,
       });
       setShowAddModal(false);
+      setAddFormError('');
       setFormData({ username: '', password: '', email: '', fullname: '' });
       fetchData();
     }
@@ -238,6 +242,7 @@ export default function EmployeeManagement() {
   // Open Change Password Modal for Super Admin
   const handleOpenPassModal = (user) => {
     setSelectedUserForPass(user);
+    setPassFormError('');
     setPassFormData({
       newPassword: '',
       confirmPassword: '',
@@ -252,17 +257,18 @@ export default function EmployeeManagement() {
   const handleChangePasswordAdmin = async (e) => {
     e.preventDefault();
     if (!selectedUserForPass) return;
+    setPassFormError('');
 
     if (!passFormData.newPassword.trim()) {
-      setAlert({ type: 'error', message: 'Vui lòng nhập mật khẩu mới!' });
+      setPassFormError('Vui lòng nhập mật khẩu mới!');
       return;
     }
     if (passFormData.newPassword.length < 6) {
-      setAlert({ type: 'error', message: 'Mật khẩu mới phải có độ dài tối thiểu 6 ký tự!' });
+      setPassFormError('Mật khẩu mới phải có độ dài tối thiểu 6 ký tự!');
       return;
     }
     if (passFormData.newPassword !== passFormData.confirmPassword) {
-      setAlert({ type: 'error', message: 'Mật khẩu mới và xác nhận mật khẩu không khớp!' });
+      setPassFormError('Mật khẩu mới và xác nhận mật khẩu không khớp!');
       return;
     }
 
@@ -276,13 +282,14 @@ export default function EmployeeManagement() {
     setSubmittingPass(false);
 
     if (err) {
-      setAlert({ type: 'error', message: `Đổi mật khẩu thất bại: ${err}` });
+      setPassFormError(`Đổi mật khẩu thất bại: ${err}`);
     } else {
       setAlert({
         type: 'success',
         message: res?.message || `Đổi mật khẩu cho người dùng '${selectedUserForPass.username}' thành công!`,
       });
       setShowPassModal(false);
+      setPassFormError('');
       setSelectedUserForPass(null);
       setPassFormData({ newPassword: '', confirmPassword: '', logoutAllClients: true });
     }
@@ -717,6 +724,7 @@ export default function EmployeeManagement() {
 
             <form onSubmit={handleCreateAdmin}>
               <div className="modal-body">
+                <AlertToast type="error" message={addFormError} />
                 <div>
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem', color: '#334155' }}>
                     Tên đăng nhập (Username) <span style={{ color: '#EF4444' }}>*</span>
@@ -849,6 +857,7 @@ export default function EmployeeManagement() {
 
             <form onSubmit={handleChangePasswordAdmin}>
               <div className="modal-body">
+                <AlertToast type="error" message={passFormError} />
                 {/* Target User Info Header */}
                 <div
                   style={{

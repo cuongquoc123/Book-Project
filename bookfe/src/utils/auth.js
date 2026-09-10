@@ -53,23 +53,23 @@ export function hasResourcePermission(user, resourcePrefix) {
   if (!perms && user.roleDetails?.permissions) {
     perms = user.roleDetails.permissions;
   }
-
+  
   // If perms is empty or not loaded yet, default to true for custom roles with canAccessAdmin to prevent lock-out!
   if (!perms || !Array.isArray(perms) || perms.length === 0) {
     return user.canAccessAdmin !== false;
   }
 
-  const prefix = resourcePrefix.toUpperCase(); // e.g. "ROLE" or "BOOK" or "CATEGORY" or "USER"
+  const prefix = (resourcePrefix || '').toUpperCase().replace(/_+$/, ''); // e.g. "ROLE" or "BOOK" or "CATEGORY" or "USER"
 
   return perms.some((p) => {
     if (typeof p === 'string') {
       const pUpper = p.toUpperCase();
-      return pUpper.startsWith(prefix) || pUpper.includes(prefix);
+      return pUpper.startsWith(prefix + '_') || pUpper === prefix || pUpper.includes(prefix);
     }
     if (p && typeof p === 'object') {
       const resUpper = (p.resource || '').toUpperCase();
       const nameUpper = (p.name || '').toUpperCase();
-      return resUpper === prefix || nameUpper.startsWith(prefix) || nameUpper.includes(prefix);
+      return resUpper === prefix || nameUpper.startsWith(prefix + '_') || nameUpper === prefix || nameUpper.includes(prefix);
     }
     return false;
   });

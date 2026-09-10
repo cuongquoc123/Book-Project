@@ -25,7 +25,7 @@ import {
   deleteCategory,
 } from '../../services/api';
 import { getUser, setAuthData } from '../../utils/auth';
-import AdminHeader from './AdminHeader';
+import AdminHeader from '../../components/AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/dashboard.css';
 
@@ -54,9 +54,11 @@ export default function CategoryManagement() {
   const [showCatModal, setShowCatModal] = useState(false);
   const [catModalMode, setCatModalMode] = useState('create'); // 'create' | 'edit'
   const [catFormData, setCatFormData] = useState({ id: null, name: '', description: '' });
+  const [catFormError, setCatFormError] = useState('');
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState({ id: null, name: '' });
+  const [deleteError, setDeleteError] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -158,6 +160,7 @@ export default function CategoryManagement() {
 
   const handleOpenCatModal = (mode, category = null) => {
     setCatModalMode(mode);
+    setCatFormError('');
     if (mode === 'edit' && category) {
       setCatFormData({
         id: category.id,
@@ -172,8 +175,9 @@ export default function CategoryManagement() {
 
   const handleSaveCategory = async (e) => {
     e.preventDefault();
+    setCatFormError('');
     if (!catFormData.name.trim()) {
-      setAlert({ type: 'error', message: 'Vui lòng nhập tên loại sách!' });
+      setCatFormError('Vui lòng nhập tên loại sách!');
       return;
     }
 
@@ -195,7 +199,7 @@ export default function CategoryManagement() {
     setSubmitting(false);
 
     if (err) {
-      setAlert({ type: 'error', message: err });
+      setCatFormError(err);
     } else {
       setAlert({
         type: 'success',
@@ -210,6 +214,7 @@ export default function CategoryManagement() {
   };
 
   const handleOpenDeleteModal = (category) => {
+    setDeleteError('');
     setDeleteTarget({
       id: category.id,
       name: category.name,
@@ -219,13 +224,14 @@ export default function CategoryManagement() {
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget.id) return;
+    setDeleteError('');
     setSubmitting(true);
 
     const [err] = await deleteCategory(deleteTarget.id);
     setSubmitting(false);
 
     if (err) {
-      setAlert({ type: 'error', message: err });
+      setDeleteError(err);
     } else {
       setAlert({
         type: 'success',
@@ -634,6 +640,7 @@ export default function CategoryManagement() {
 
             <form onSubmit={handleSaveCategory}>
               <div className="modal-body">
+                <AlertToast type="error" message={catFormError} />
                 <div>
                   <label
                     style={{
@@ -732,7 +739,8 @@ export default function CategoryManagement() {
               </button>
             </div>
 
-            <div className="modal-body" style={{ textAlign: 'center', padding: '2rem 1.5rem' }}>
+            <div className="modal-body" style={{ textAlign: 'center', padding: '1.5rem' }}>
+              <AlertToast type="error" message={deleteError} />
               <p style={{ fontSize: '0.95rem', color: '#334155', lineHeight: '1.6' }}>
                 Bạn có chắc chắn muốn xóa loại sách:
               </p>

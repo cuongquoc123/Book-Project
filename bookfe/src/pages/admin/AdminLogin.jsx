@@ -23,7 +23,7 @@ export default function AdminLogin() {
   useEffect(() => {
     if (isAuthenticated()) {
       const user = getUser();
-      if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
+      if (user?.canAccessAdmin !== false && user?.role !== 'CLIENT') {
         navigate('/dashboard', { replace: true });
       }
     }

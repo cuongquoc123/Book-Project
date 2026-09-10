@@ -29,7 +29,7 @@ import {
   deleteUploadedImage,
 } from '../../services/api';
 import { getUser, setAuthData } from '../../utils/auth';
-import AdminHeader from './AdminHeader';
+import AdminHeader from '../../components/AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/dashboard.css';
 
@@ -69,9 +69,11 @@ export default function BookManagement() {
     totalStock: 10,
     categoryId: '',
   });
+  const [bookFormError, setBookFormError] = useState('');
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState({ id: null, title: '' });
+  const [deleteError, setDeleteError] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -82,7 +84,7 @@ export default function BookManagement() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setAlert({ type: 'error', message: 'Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!' });
+      setBookFormError('Vui lòng chọn tệp hình ảnh (JPG, PNG, WEBP, GIF)!');
       return;
     }
 
@@ -92,15 +94,15 @@ export default function BookManagement() {
     }
 
     setUploadingCover(true);
+    setBookFormError('');
     const [err, data] = await uploadImage(file);
     setUploadingCover(false);
 
     if (err) {
-      setAlert({ type: 'error', message: `Lỗi upload ảnh bìa: ${err}` });
+      setBookFormError(`Lỗi upload ảnh bìa: ${err}`);
     } else if (data?.fileUrl) {
       setBookFormData((prev) => ({ ...prev, coverUrl: data.fileUrl }));
       setUploadedCoverUrl(data.fileUrl);
-      setAlert({ type: 'success', message: 'Tải ảnh bìa sách lên thành công!' });
     }
   };
 
@@ -211,6 +213,7 @@ export default function BookManagement() {
 
   const handleOpenBookModal = (mode, book = null) => {
     setUploadedCoverUrl('');
+    setBookFormError('');
     setBookModalMode(mode);
     if (mode === 'edit' && book) {
       setBookFormData({
@@ -258,6 +261,7 @@ export default function BookManagement() {
     }
 
     setUploadedCoverUrl('');
+    setBookFormError('');
     setBookFormData({
       id: null,
       title: '',
@@ -273,8 +277,9 @@ export default function BookManagement() {
 
   const handleSaveBook = async (e) => {
     e.preventDefault();
+    setBookFormError('');
     if (!bookFormData.title.trim()) {
-      setAlert({ type: 'error', message: 'Vui lòng nhập tên cuốn sách!' });
+      setBookFormError('Vui lòng nhập tên cuốn sách!');
       // If validation fails when creating a book, clean up uploaded image from server
       if (bookModalMode === 'create' && uploadedCoverUrl) {
         await deleteUploadedImage(uploadedCoverUrl);
@@ -284,7 +289,7 @@ export default function BookManagement() {
       return;
     }
     if (!bookFormData.categoryId) {
-      setAlert({ type: 'error', message: 'Vui lòng chọn loại sách!' });
+      setBookFormError('Vui lòng chọn loại sách!');
       if (bookModalMode === 'create' && uploadedCoverUrl) {
         await deleteUploadedImage(uploadedCoverUrl);
         setUploadedCoverUrl('');
@@ -314,7 +319,7 @@ export default function BookManagement() {
     setSubmitting(false);
 
     if (err) {
-      setAlert({ type: 'error', message: err });
+      setBookFormError(err);
       // IF BOOK CREATION FAILS AND AN IMAGE WAS UPLOADED, DELETE IT FROM SERVER!
       if (bookModalMode === 'create' && uploadedCoverUrl) {
         await deleteUploadedImage(uploadedCoverUrl);
@@ -330,12 +335,14 @@ export default function BookManagement() {
             : 'Cập nhật cuốn sách thành công!',
       });
       setUploadedCoverUrl('');
+      setBookFormError('');
       setShowBookModal(false);
       fetchData();
     }
   };
 
   const handleOpenDeleteModal = (book) => {
+    setDeleteError('');
     setDeleteTarget({
       id: book.id,
       title: book.title,
@@ -345,13 +352,14 @@ export default function BookManagement() {
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget.id) return;
+    setDeleteError('');
     setSubmitting(true);
 
     const [err] = await deleteBook(deleteTarget.id);
     setSubmitting(false);
 
     if (err) {
-      setAlert({ type: 'error', message: err });
+      setDeleteError(err);
     } else {
       setAlert({
         type: 'success',
@@ -831,6 +839,7 @@ export default function BookManagement() {
 
             <form onSubmit={handleSaveBook}>
               <div className="modal-body">
+                <AlertToast type="error" message={bookFormError} />
                 <div>
                   <label
                     style={{
@@ -1182,7 +1191,8 @@ export default function BookManagement() {
               </button>
             </div>
 
-            <div className="modal-body" style={{ textAlign: 'center', padding: '2rem 1.5rem' }}>
+            <div className="modal-body" style={{ textAlign: 'center', padding: '1.5rem' }}>
+              <AlertToast type="error" message={deleteError} />
               <p style={{ fontSize: '0.95rem', color: '#334155', lineHeight: '1.6' }}>
                 Bạn có chắc chắn muốn xóa cuốn sách:
               </p>

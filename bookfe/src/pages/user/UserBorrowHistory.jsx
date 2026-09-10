@@ -17,8 +17,12 @@ import {
   RotateCcw,
   XCircle,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
-import { logoutUser, getCurrentUser, getMyBorrow, getBorrowHistory, returnBook } from '../../services/api';
+import { logoutUser, getCurrentUser, getMyBorrow, getBorrowHistory, returnBook, cancelBorrow } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/auth.css';
@@ -34,11 +38,17 @@ export default function UserBorrowHistory() {
   const [submitting, setSubmitting] = useState(false);
   const [alert, setAlert] = useState({ type: '', message: '' });
 
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(5);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
+
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'BORROWED' | 'RETURNED' | 'REJECTED'
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'BORROWED' | 'RETURNED' | 'REJECTED' | 'CANCELLED'
 
-  const fetchData = async () => {
+  const fetchData = async (targetPage = page, targetSize = pageSize) => {
     setLoading(true);
     setAlert({ type: '', message: '' });
 
@@ -62,20 +72,52 @@ export default function UserBorrowHistory() {
       setMyActiveBorrow(null);
     }
 
-    // Fetch full borrow history
-    const [historyErr, historyData] = await getBorrowHistory();
-    if (!historyErr && Array.isArray(historyData)) {
-      setHistoryList(historyData);
+    // Fetch paginated borrow history
+    const [historyErr, historyData] = await getBorrowHistory({
+      page: targetPage,
+      size: targetSize,
+      sortBy: 'id',
+      sortDir: 'desc',
+    });
+    if (!historyErr && historyData) {
+      if (historyData.content) {
+        setHistoryList(historyData.content);
+        setTotalPages(historyData.totalPages || 0);
+        setTotalElements(historyData.totalElements || 0);
+      } else if (Array.isArray(historyData)) {
+        setHistoryList(historyData);
+        setTotalPages(1);
+        setTotalElements(historyData.length);
+      } else {
+        setHistoryList([]);
+        setTotalPages(0);
+        setTotalElements(0);
+      }
     } else {
       setHistoryList([]);
+      setTotalPages(0);
+      setTotalElements(0);
     }
 
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchData();
+    fetchData(0, pageSize);
   }, []);
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 0 || (totalPages > 0 && newPage >= totalPages)) return;
+    setPage(newPage);
+    fetchData(newPage, pageSize);
+  };
+
+  const handlePageSizeChange = (newSize) => {
+    const sizeNum = Number(newSize);
+    setPageSize(sizeNum);
+    setPage(0);
+    fetchData(0, sizeNum);
+  };
 
   const handleReturn = async (borrowId) => {
     if (!borrowId) return;
@@ -87,7 +129,21 @@ export default function UserBorrowHistory() {
       setAlert({ type: 'error', message: err });
     } else {
       setAlert({ type: 'success', message: 'Trả sách thành công! Cảm ơn bạn đã đọc và giữ gìn sách.' });
-      fetchData();
+      fetchData(page, pageSize);
+    }
+  };
+
+  const handleCancelBorrow = async (borrowId) => {
+    if (!borrowId) return;
+    setSubmitting(true);
+    const [err, data] = await cancelBorrow(borrowId);
+    setSubmitting(false);
+
+    if (err) {
+      setAlert({ type: 'error', message: err });
+    } else {
+      setAlert({ type: 'success', message: 'Hủy yêu cầu mượn sách thành công!' });
+      fetchData(page, pageSize);
     }
   };
 
@@ -465,20 +521,25 @@ export default function UserBorrowHistory() {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => handleReturn(myActiveBorrow.id)}
+                    onClick={() => handleCancelBorrow(myActiveBorrow.id)}
                     disabled={submitting}
                     style={{
                       padding: '0.75rem 1.25rem',
-                      background: '#F1F5F9',
-                      color: '#64748B',
-                      border: '1px solid #CBD5E1',
+                      background: '#FEF2F2',
+                      color: '#DC2626',
+                      border: '1px solid #FCA5A5',
                       borderRadius: '12px',
                       fontWeight: 700,
                       fontSize: '0.875rem',
                       cursor: submitting ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      boxShadow: '0 2px 6px rgba(220, 38, 38, 0.15)',
                     }}
                   >
-                    Hủy Yêu Cầu Mượn
+                    <XCircle size={16} />
+                    <span>Hủy Yêu Cầu Mượn</span>
                   </button>
                 )}
               </div>
@@ -636,6 +697,23 @@ export default function UserBorrowHistory() {
                 >
                   Đã trả
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('CANCELLED')}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    border: 'none',
+                    background: statusFilter === 'CANCELLED' ? '#F1F5F9' : 'transparent',
+                    color: statusFilter === 'CANCELLED' ? '#475569' : '#64748B',
+                    boxShadow: statusFilter === 'CANCELLED' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Đã hủy
+                </button>
               </div>
 
               <button
@@ -696,6 +774,7 @@ export default function UserBorrowHistory() {
                       const isBorrowed = item.status === 'BORROWED';
                       const isReturned = item.status === 'RETURNED';
                       const isRejected = item.status === 'REJECTED';
+                      const isCancelled = item.status === 'CANCELLED';
 
                       return (
                         <tr key={item.id}>
@@ -771,6 +850,11 @@ export default function UserBorrowHistory() {
                                 TỪ CHỐI
                               </span>
                             )}
+                            {isCancelled && (
+                              <span style={{ background: '#F1F5F9', color: '#64748B', border: '1px solid #CBD5E1', padding: '0.25rem 0.65rem', borderRadius: '8px', fontSize: '0.775rem', fontWeight: 800 }}>
+                                ĐÃ HỦY
+                              </span>
+                            )}
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             {isBorrowed && (
@@ -795,6 +879,29 @@ export default function UserBorrowHistory() {
                                 <RotateCcw size={14} /> Trả sách
                               </button>
                             )}
+                            {isPending && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelBorrow(item.id)}
+                                disabled={submitting}
+                                style={{
+                                  padding: '0.4rem 0.85rem',
+                                  background: '#FEF2F2',
+                                  color: '#DC2626',
+                                  border: '1px solid #FCA5A5',
+                                  borderRadius: '8px',
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  cursor: submitting ? 'not-allowed' : 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                }}
+                                title="Hủy yêu cầu mượn sách này"
+                              >
+                                <XCircle size={14} /> Hủy Yêu Cầu
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -802,6 +909,174 @@ export default function UserBorrowHistory() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '1.25rem 1rem 0.5rem 1rem',
+                    borderTop: '1px solid #E2E8F0',
+                    marginTop: '0.5rem',
+                    flexWrap: 'wrap',
+                    gap: '1rem',
+                  }}
+                >
+                  <div style={{ fontSize: '0.85rem', color: '#64748B' }}>
+                    Hiển thị <strong style={{ color: '#0F172A' }}>{totalElements > 0 ? page * pageSize + 1 : 0}</strong> -{' '}
+                    <strong style={{ color: '#0F172A' }}>{Math.min((page + 1) * pageSize, totalElements || historyList.length)}</strong>{' '}
+                    trong tổng số <strong style={{ color: '#10B981' }}>{totalElements || historyList.length}</strong> đơn mượn
+                    {totalPages > 0 && ` (Trang ${page + 1} / ${totalPages})`}
+                  </div>
+
+                  {/* Controls right */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {/* Page Size Select */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#64748B' }}>
+                      <span>Hiển thị:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => handlePageSizeChange(e.target.value)}
+                        style={{
+                          padding: '0.35rem 0.65rem',
+                          borderRadius: '8px',
+                          border: '1px solid #CBD5E1',
+                          background: '#F8FAFC',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          color: '#334155',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value={3}>3 đơn/trang</option>
+                        <option value={5}>5 đơn/trang</option>
+                        <option value={10}>10 đơn/trang</option>
+                        <option value={20}>20 đơn/trang</option>
+                      </select>
+                    </div>
+
+                    {/* Pagination Buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      {/* First Page */}
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(0)}
+                        disabled={page === 0}
+                        style={{
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '10px',
+                          border: '1px solid #E2E8F0',
+                          background: page === 0 ? '#F1F5F9' : 'white',
+                          color: page === 0 ? '#CBD5E1' : '#334155',
+                          cursor: page === 0 ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          transition: 'all 0.2s ease',
+                        }}
+                        title="Trang đầu"
+                      >
+                        <ChevronsLeft size={16} />
+                      </button>
+
+                      {/* Previous Page */}
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(page - 1)}
+                        disabled={page === 0}
+                        style={{
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '10px',
+                          border: '1px solid #E2E8F0',
+                          background: page === 0 ? '#F1F5F9' : 'white',
+                          color: page === 0 ? '#CBD5E1' : '#334155',
+                          cursor: page === 0 ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          transition: 'all 0.2s ease',
+                        }}
+                        title="Trang trước"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+
+                      {/* Page Number Buttons */}
+                      {Array.from({ length: totalPages }, (_, idx) => idx)
+                        .filter((pIdx) => Math.abs(pIdx - page) <= 2 || pIdx === 0 || pIdx === totalPages - 1)
+                        .map((pIdx, idx, arr) => {
+                          const prevIdx = arr[idx - 1];
+                          const showEllipsis = prevIdx !== undefined && pIdx - prevIdx > 1;
+                          return (
+                            <React.Fragment key={pIdx}>
+                              {showEllipsis && <span style={{ padding: '0 0.2rem', color: '#94A3B8' }}>...</span>}
+                              <button
+                                type="button"
+                                onClick={() => handlePageChange(pIdx)}
+                                style={{
+                                  padding: '0.45rem 0.85rem',
+                                  borderRadius: '10px',
+                                  border: pIdx === page ? '1px solid #10B981' : '1px solid #E2E8F0',
+                                  background: pIdx === page ? '#10B981' : 'white',
+                                  color: pIdx === page ? 'white' : '#334155',
+                                  fontWeight: 700,
+                                  fontSize: '0.85rem',
+                                  cursor: 'pointer',
+                                  boxShadow: pIdx === page ? '0 2px 8px rgba(16, 185, 129, 0.3)' : 'none',
+                                  transition: 'all 0.2s ease',
+                                }}
+                              >
+                                {pIdx + 1}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+
+                      {/* Next Page */}
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(page + 1)}
+                        disabled={page >= totalPages - 1}
+                        style={{
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '10px',
+                          border: '1px solid #E2E8F0',
+                          background: page >= totalPages - 1 ? '#F1F5F9' : 'white',
+                          color: page >= totalPages - 1 ? '#CBD5E1' : '#334155',
+                          cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          transition: 'all 0.2s ease',
+                        }}
+                        title="Trang tiếp"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+
+                      {/* Last Page */}
+                      <button
+                        type="button"
+                        onClick={() => handlePageChange(totalPages - 1)}
+                        disabled={page >= totalPages - 1}
+                        style={{
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '10px',
+                          border: '1px solid #E2E8F0',
+                          background: page >= totalPages - 1 ? '#F1F5F9' : 'white',
+                          color: page >= totalPages - 1 ? '#CBD5E1' : '#334155',
+                          cursor: page >= totalPages - 1 ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          transition: 'all 0.2s ease',
+                        }}
+                        title="Trang cuối"
+                      >
+                        <ChevronsRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

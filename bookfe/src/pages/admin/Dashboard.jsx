@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { getCurrentUser, getAllCategories, getAllBooks, getAllBorrowsForAdmin } from '../../services/api';
 import { getUser, hasResourcePermission, setAuthData } from '../../utils/auth';
-import AdminHeader from './AdminHeader';
+import AdminHeader from '../../components/AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/dashboard.css';
 
@@ -67,9 +67,10 @@ export default function Dashboard() {
       setTotalBooks(bookRes.totalElements !== undefined ? bookRes.totalElements : list.length);
     }
 
-    const [borrowErr, borrowRes] = await getAllBorrowsForAdmin();
-    if (!borrowErr && Array.isArray(borrowRes)) {
-      setBorrows(borrowRes);
+    const [borrowErr, borrowRes] = await getAllBorrowsForAdmin({ page: 0, size: 200 });
+    if (!borrowErr && borrowRes) {
+      const borrowList = Array.isArray(borrowRes) ? borrowRes : (borrowRes.content || []);
+      setBorrows(borrowList);
     }
 
     setLoading(false);
@@ -86,7 +87,10 @@ export default function Dashboard() {
   const canManageCategories = useMemo(() => hasResourcePermission(currentUser, 'CATEGORY'), [currentUser]);
   const canManageRoles = useMemo(() => hasResourcePermission(currentUser, 'ROLE'), [currentUser]);
   const canManageUsers = useMemo(() => isSuperAdmin || hasResourcePermission(currentUser, 'USER'), [currentUser, isSuperAdmin]);
-  const canManageBorrows = useMemo(() => isSuperAdmin || currentUser.role === 'ADMIN' || hasResourcePermission(currentUser, 'BOOK') || hasResourcePermission(currentUser, 'PURCHASE'), [currentUser, isSuperAdmin]);
+  const canManageBorrows = useMemo(
+    () => isSuperAdmin || currentUser.role === 'ADMIN' || hasResourcePermission(currentUser, 'BOOK') || hasResourcePermission(currentUser, 'PURCHASE') || hasResourcePermission(currentUser, 'ROLE') || currentUser.canAccessAdmin !== false,
+    [currentUser, isSuperAdmin]
+  );
 
   const pendingBorrowsCount = useMemo(() => borrows.filter((b) => b.status === 'PENDING').length, [borrows]);
   const activeBorrowsCount = useMemo(() => borrows.filter((b) => b.status === 'BORROWED').length, [borrows]);

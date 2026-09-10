@@ -28,7 +28,7 @@ import {
   getAllCategories,
 } from '../../services/api';
 import { getUser, setAuthData } from '../../utils/auth';
-import AdminHeader from './AdminHeader';
+import AdminHeader from '../../components/AdminHeader';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/dashboard.css';
 
@@ -57,6 +57,7 @@ export default function BorrowManagement() {
     type: '', // 'APPROVE' | 'REJECT' | 'RETURN'
     item: null,
   });
+  const [actionModalError, setActionModalError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchData = async () => {
@@ -89,10 +90,12 @@ export default function BorrowManagement() {
     }
 
     // Fetch all borrow records
-    const [borrowErr, borrowData] = await getAllBorrowsForAdmin();
+    const [borrowErr, borrowData] = await getAllBorrowsForAdmin({ page: 0, size: 200 });
     if (borrowErr) {
       setAlert({ type: 'error', message: `Không thể tải danh sách mượn sách: ${borrowErr}` });
       setBorrowList([]);
+    } else if (borrowData?.content) {
+      setBorrowList(borrowData.content);
     } else if (Array.isArray(borrowData)) {
       setBorrowList(borrowData);
     } else {
@@ -109,17 +112,19 @@ export default function BorrowManagement() {
   // Handle Approve
   const handleConfirmApprove = async () => {
     if (!actionModal.item?.id) return;
+    setActionModalError('');
     setSubmitting(true);
     const [err, data] = await approveBorrow(actionModal.item.id);
     setSubmitting(false);
 
     if (err) {
-      setAlert({ type: 'error', message: `Lỗi duyệt đơn: ${err}` });
+      setActionModalError(`Lỗi duyệt đơn: ${err}`);
     } else {
       setAlert({
         type: 'success',
         message: `Đã duyệt thành công đơn mượn cuốn sách "${actionModal.item.book?.title}" cho độc giả ${actionModal.item.user?.fullName || actionModal.item.user?.username}!`,
       });
+      setActionModalError('');
       setActionModal({ isOpen: false, type: '', item: null });
       fetchData();
     }
@@ -128,17 +133,19 @@ export default function BorrowManagement() {
   // Handle Reject
   const handleConfirmReject = async () => {
     if (!actionModal.item?.id) return;
+    setActionModalError('');
     setSubmitting(true);
     const [err, data] = await rejectBorrow(actionModal.item.id);
     setSubmitting(false);
 
     if (err) {
-      setAlert({ type: 'error', message: `Lỗi từ chối đơn: ${err}` });
+      setActionModalError(`Lỗi từ chối đơn: ${err}`);
     } else {
       setAlert({
         type: 'success',
         message: `Đã từ chối đơn mượn sách #${actionModal.item.id} của độc giả ${actionModal.item.user?.fullName || actionModal.item.user?.username}.`,
       });
+      setActionModalError('');
       setActionModal({ isOpen: false, type: '', item: null });
       fetchData();
     }
@@ -147,17 +154,19 @@ export default function BorrowManagement() {
   // Handle Return
   const handleConfirmReturn = async () => {
     if (!actionModal.item?.id) return;
+    setActionModalError('');
     setSubmitting(true);
     const [err, data] = await returnBook(actionModal.item.id);
     setSubmitting(false);
 
     if (err) {
-      setAlert({ type: 'error', message: `Lỗi xác nhận trả sách: ${err}` });
+      setActionModalError(`Lỗi xác nhận trả sách: ${err}`);
     } else {
       setAlert({
         type: 'success',
         message: `Đã xác nhận thu hồi sách "${actionModal.item.book?.title}" thành công. Tồn kho khả dụng của sách đã được cộng lại!`,
       });
+      setActionModalError('');
       setActionModal({ isOpen: false, type: '', item: null });
       fetchData();
     }
@@ -973,6 +982,7 @@ export default function BorrowManagement() {
             </div>
 
             <div className="modal-body">
+              <AlertToast type="error" message={actionModalError} />
               <p style={{ color: '#334155', lineHeight: 1.6 }}>
                 Bạn có chắc chắn muốn <strong>phê duyệt</strong> yêu cầu mượn sách sau đây?
               </p>
@@ -1055,6 +1065,7 @@ export default function BorrowManagement() {
             </div>
 
             <div className="modal-body">
+              <AlertToast type="error" message={actionModalError} />
               <p style={{ color: '#334155', lineHeight: 1.6 }}>
                 Bạn có chắc chắn muốn <strong>từ chối</strong> đơn mượn cuốn sách <strong>"{actionModal.item?.book?.title}"</strong> của độc giả <strong>{actionModal.item?.user?.fullName || actionModal.item?.user?.username}</strong>?
               </p>
@@ -1105,6 +1116,7 @@ export default function BorrowManagement() {
             </div>
 
             <div className="modal-body">
+              <AlertToast type="error" message={actionModalError} />
               <p style={{ color: '#334155', lineHeight: 1.6 }}>
                 Xác nhận độc giả <strong>{actionModal.item?.user?.fullName || actionModal.item?.user?.username}</strong> đã trả lại cuốn sách <strong>"{actionModal.item?.book?.title}"</strong> về thư viện?
               </p>

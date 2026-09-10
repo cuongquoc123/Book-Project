@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,22 +45,40 @@ public class BorrowService {
             throw new IllegalArgumentException("Ngày hẹn trả không được ở trong quá khứ!");
         }
 
-        // Kiểm tra xem độc giả đã có đơn đang CHỜ DUYỆT hoặc ĐANG MƯỢN hay chưa
-        boolean hasPendingOrActive = purchaseRepository.existsByUserIdAndStatusIn(
+        // 1. Kiểm tra xem độc giả đã có đơn PENDING hoặc BORROWED cho CHÍNH cuốn sách này chưa
+        boolean alreadyBorrowingThisBook = purchaseRepository.existsByUserIdAndBookIdAndStatusIn(
                 currentUser.getId(), 
+                bookId,
                 List.of(PurchaseStatus.PENDING, PurchaseStatus.BORROWED)
         );
 
-        if (hasPendingOrActive) {
-            throw new IllegalArgumentException("Bạn đang có 1 cuốn sách đang mượn hoặc đang chờ duyệt. Vui lòng hoàn tất trước khi mượn cuốn mới!");
+        if (alreadyBorrowingThisBook) {
+            throw new IllegalArgumentException("Bạn đang có 1 đơn mượn cuốn sách này (đang chờ duyệt hoặc đang đọc). Vui lòng hoàn tất trước khi tạo thêm đơn mượn cuốn này!");
         }
 
         Book book = bookRepository.findById(bookId)
                     .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sách với ID " + bookId));
         
-        int avail = book.getAvailableStock() != null ? book.getAvailableStock() : (book.getTotalStock() != null ? book.getTotalStock() : 10);
+        int totalStock = book.getTotalStock() != null ? book.getTotalStock() : 10;
+        
+        // 2. Số lượng sách được mượn tối đa là 50% tổng số sách, làm tròn xuống (ví dụ 5 * 50% = 2)
+        int maxBorrowable = (int) Math.floor(totalStock * 0.5);
+        if (maxBorrowable <= 0) {
+            throw new IllegalStateException("Đầu sách này có tổng số lượng là " + totalStock + " cuốn nên không đủ điều kiện cho mượn ra ngoài (giới hạn 50% làm tròn xuống là 0 cuốn).");
+        }
+
+        long currentlyBorrowed = purchaseRepository.countByBookIdAndStatusIn(
+                bookId, 
+                List.of(PurchaseStatus.PENDING, PurchaseStatus.BORROWED)
+        );
+
+        if (currentlyBorrowed >= maxBorrowable) {
+            throw new IllegalStateException("Đầu sách \"" + book.getTitle() + "\" đã đạt giới hạn cho mượn tối đa (" + maxBorrowable + "/" + totalStock + " cuốn - 50% tổng số sách). Vui lòng chọn sách khác hoặc chờ độc giả khác hoàn trả!");
+        }
+
+        int avail = book.getAvailableStock() != null ? book.getAvailableStock() : totalStock;
         if (avail <= 0) {
-            throw new IllegalStateException("Sách này hiện tại đã hết bản sao khả dụng. Vui lòng chọn quyển khác!");
+            throw new IllegalStateException("Sách này hiện tại đã hết bản sao khả dụng trong kho. Vui lòng chọn quyển khác!");
         }
 
         Purchase borrow = Purchase.builder()
@@ -170,7 +190,33 @@ public class BorrowService {
     }
 
     /**
-     * Lấy lượt mượn đang active hoặc pending của độc giả
+     * Độc giả hủy yêu cầu mượn sách khi đang ở trạng thái PENDING (Chờ duyệt)
+     */
+    @Transactional
+    public Purchase cancelBorrow(Long borrowId, User currentUser) {
+        if (currentUser == null) {
+            throw new IllegalArgumentException("Vui lòng đăng nhập để thực hiện hủy yêu cầu mượn sách");
+        }
+
+        Purchase borrow = purchaseRepository.findById(borrowId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin yêu cầu mượn sách"));
+
+        boolean isOwner = currentUser.getId() != null && currentUser.getId().equals(borrow.getUser().getId());
+        boolean isManager = currentUser.isSuperAdmin() || currentUser.isAdmin();
+        if (!isOwner && !isManager) {
+            throw new IllegalArgumentException("Bạn không có quyền hủy yêu cầu này!");
+        }
+
+        if (borrow.getStatus() != PurchaseStatus.PENDING) {
+            throw new IllegalStateException("Chỉ có thể hủy yêu cầu mượn sách khi đang ở trạng thái Chờ Duyệt (PENDING)!");
+        }
+
+        borrow.setStatus(PurchaseStatus.CANCELLED);
+        return purchaseRepository.save(borrow);
+    }
+
+    /**
+     * Lấy lượt mượn đang active hoặc pending gần nhất của độc giả
      */
     @Transactional(readOnly = true)
     public Purchase getMyActiveBorrow(User currentUser) {
@@ -184,6 +230,31 @@ public class BorrowService {
     }
 
     /**
+     * Lấy danh sách tất cả các lượt mượn đang active hoặc pending của độc giả
+     */
+    @Transactional(readOnly = true)
+    public List<Purchase> getMyActiveBorrows(User currentUser) {
+        if (currentUser == null) {
+            return List.of();
+        }
+        return purchaseRepository.findByUserIdAndStatusInOrderByCreatedAtDesc(
+                currentUser.getId(),
+                List.of(PurchaseStatus.PENDING, PurchaseStatus.BORROWED)
+        );
+    }
+
+    /**
+     * Lấy lịch sử mượn trả phân trang của độc giả
+     */
+    @Transactional(readOnly = true)
+    public Page<Purchase> getUserBorrowHistory(User currentUser, Pageable pageable) {
+        if (currentUser == null) {
+            return Page.empty(pageable);
+        }
+        return purchaseRepository.findByUserIdWithBook(currentUser.getId(), pageable);
+    }
+
+    /**
      * Lấy toàn bộ lịch sử mượn trả của độc giả
      */
     @Transactional(readOnly = true)
@@ -192,6 +263,14 @@ public class BorrowService {
             return List.of();
         }
         return purchaseRepository.findByUserIdWithBookOrderByCreatedAtDesc(currentUser.getId());
+    }
+
+    /**
+     * Lấy danh sách mượn sách phân trang cho Admin quản lý
+     */
+    @Transactional(readOnly = true)
+    public Page<Purchase> getAllBorrowsForAdmin(Pageable pageable) {
+        return purchaseRepository.findAllWithDetails(pageable);
     }
 
     /**

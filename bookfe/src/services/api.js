@@ -245,6 +245,10 @@ export async function returnBook(borrowId) {
   return to(axiosClient.post(`/borrow/return/${borrowId}`));
 }
 
+export async function cancelBorrow(borrowId) {
+  return to(axiosClient.post(`/borrow/cancel/${borrowId}`));
+}
+
 export async function approveBorrow(borrowId) {
   return to(axiosClient.post(`/borrow/approve/${borrowId}`));
 }
@@ -253,16 +257,22 @@ export async function rejectBorrow(borrowId) {
   return to(axiosClient.post(`/borrow/reject/${borrowId}`));
 }
 
-export async function getAllBorrowsForAdmin() {
-  return to(axiosClient.get('/borrow/admin/all'));
+export async function getAllBorrowsForAdmin(params = {}) {
+  const { page = 0, size = 10, sortBy = 'id', sortDir = 'desc' } = params;
+  return to(axiosClient.get('/borrow/admin/all', { params: { page, size, sortBy, sortDir } }));
 }
 
 export async function getMyBorrow() {
   return to(axiosClient.get('/borrow/my-borrow'));
 }
 
-export async function getBorrowHistory() {
-  return to(axiosClient.get('/borrow/history'));
+export async function getMyActiveBorrowsList() {
+  return to(axiosClient.get('/borrow/my-active-list'));
+}
+
+export async function getBorrowHistory(params = {}) {
+  const { page = 0, size = 5, sortBy = 'id', sortDir = 'desc' } = params;
+  return to(axiosClient.get('/borrow/history', { params: { page, size, sortBy, sortDir } }));
 }
 
 export const BorrowBook = borrowBook;

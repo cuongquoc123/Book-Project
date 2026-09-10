@@ -25,7 +25,7 @@ import {
   Calendar,
   Clock,
 } from 'lucide-react';
-import { logoutUser, getCurrentUser, getAllBooks, getAllCategories, borrowBook, returnBook, getMyBorrow } from '../../services/api';
+import { logoutUser, getCurrentUser, getAllBooks, getAllCategories, borrowBook, returnBook, cancelBorrow, getMyBorrow, getMyActiveBorrowsList } from '../../services/api';
 import { clearAuth, getRefreshToken, getUser } from '../../utils/auth';
 import AlertToast from '../../components/AlertToast';
 import '../../styles/auth.css';
@@ -37,7 +37,7 @@ export default function UserHome() {
   // API Data
   const [books, setBooks] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [myBorrow, setMyBorrow] = useState(null);
+  const [myBorrows, setMyBorrows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ type: '', message: '' });
 
@@ -55,13 +55,15 @@ export default function UserHome() {
   // Selected Book for Detail Modal
   const [selectedBook, setSelectedBook] = useState(null);
 
-  // Borrow Modal State (User sets Due Date & Note)
+  // Borrow Modal State (User sets Due Date, Quantity & Note)
   const [borrowModalTarget, setBorrowModalTarget] = useState(null);
+  const [borrowModalError, setBorrowModalError] = useState('');
   const [borrowDueDate, setBorrowDueDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 7);
     return d.toISOString().split('T')[0];
   });
+  const [borrowQuantity, setBorrowQuantity] = useState(1);
   const [borrowNote, setBorrowNote] = useState('');
   const [submittingBorrow, setSubmittingBorrow] = useState(false);
 
@@ -112,12 +114,17 @@ export default function UserHome() {
       }
     }
 
-    // Fetch user active borrow info
-    const [borrowErr, borrowData] = await getMyBorrow();
-    if (!borrowErr && borrowData) {
-      setMyBorrow(borrowData);
+    // Fetch user active borrows list
+    const [borrowListErr, borrowListData] = await getMyActiveBorrowsList();
+    if (!borrowListErr && Array.isArray(borrowListData)) {
+      setMyBorrows(borrowListData);
     } else {
-      setMyBorrow(null);
+      const [singleErr, singleData] = await getMyBorrow();
+      if (!singleErr && singleData) {
+        setMyBorrows([singleData]);
+      } else {
+        setMyBorrows([]);
+      }
     }
 
     setLoading(false);
@@ -128,15 +135,45 @@ export default function UserHome() {
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() + 7);
     setBorrowDueDate(defaultDate.toISOString().split('T')[0]);
+    setBorrowQuantity(1);
     setBorrowNote('');
+    setBorrowModalError('');
     setBorrowModalTarget(book);
   };
 
   const handleConfirmBorrow = async () => {
     if (!borrowModalTarget) return;
+    setBorrowModalError('');
+
+    const totalStock = borrowModalTarget.totalStock || 10;
+    const maxBorrowable = borrowModalTarget.maxBorrowable !== undefined ? borrowModalTarget.maxBorrowable : Math.floor(totalStock * 0.5);
+    const borrowedCount = borrowModalTarget.borrowedCount || 0;
+    const remainingBorrowable = borrowModalTarget.remainingBorrowable !== undefined ? borrowModalTarget.remainingBorrowable : Math.max(0, maxBorrowable - borrowedCount);
+    const availableStock = borrowModalTarget.availableStock !== undefined ? borrowModalTarget.availableStock : totalStock;
+    const maxAllowed = Math.min(remainingBorrowable, availableStock);
+
+    if (maxBorrowable <= 0) {
+      setBorrowModalError(`Đầu sách này có tổng số lượng là ${totalStock} cuốn (50% làm tròn xuống là 0 cuốn) nên không đủ điều kiện cho mượn ra ngoài.`);
+      return;
+    }
+
+    if (remainingBorrowable <= 0) {
+      setBorrowModalError(`Đầu sách này đã đạt hạn mức mượn tối đa 50% (${maxBorrowable}/${totalStock} cuốn). Vui lòng chọn sách khác hoặc đợi độc giả hoàn trả!`);
+      return;
+    }
+
+    if (!borrowQuantity || borrowQuantity < 1) {
+      setBorrowModalError('Số lượng sách muốn mượn tối thiểu là 1 cuốn!');
+      return;
+    }
+
+    if (borrowQuantity > maxAllowed) {
+      setBorrowModalError(`Số lượng mượn (${borrowQuantity} cuốn) vượt quá số lượng tối đa cho phép hiện tại (${maxAllowed} cuốn)!`);
+      return;
+    }
 
     if (!borrowDueDate) {
-      setAlert({ type: 'error', message: 'Vui lòng chọn ngày hẹn trả sách!' });
+      setBorrowModalError('Vui lòng chọn ngày hẹn trả sách!');
       return;
     }
 
@@ -144,7 +181,7 @@ export default function UserHome() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (selectedDate <= today) {
-      setAlert({ type: 'error', message: 'Ngày hẹn trả sách phải từ ngày mai trở đi!' });
+      setBorrowModalError('Ngày hẹn trả sách phải từ ngày mai trở đi!');
       return;
     }
 
@@ -152,16 +189,18 @@ export default function UserHome() {
     const [err, data] = await borrowBook(borrowModalTarget.id, {
       dueDate: borrowDueDate,
       note: borrowNote,
+      quantity: borrowQuantity,
     });
     setSubmittingBorrow(false);
 
     if (err) {
-      setAlert({ type: 'error', message: err });
+      setBorrowModalError(err);
     } else {
       setAlert({
         type: 'success',
-        message: `Đã gửi yêu cầu mượn cuốn sách "${borrowModalTarget.title}" thành công! Yêu cầu của bạn đang chờ Ban Quản Trị / Thủ Thư phê duyệt.`,
+        message: `Đã gửi yêu cầu mượn ${borrowQuantity} cuốn sách "${borrowModalTarget.title}" thành công! Yêu cầu của bạn đang chờ Ban Quản Trị / Thủ Thư phê duyệt.`,
       });
+      setBorrowModalError('');
       setBorrowModalTarget(null);
       if (selectedBook) setSelectedBook(null);
       fetchData();
@@ -176,6 +215,19 @@ export default function UserHome() {
       setAlert({ type: 'error', message: err });
     } else {
       setAlert({ type: 'success', message: 'Trả sách thành công! Cảm ơn bạn.' });
+      if (selectedBook) setSelectedBook(null);
+      fetchData();
+    }
+  };
+
+  const handleCancelBorrow = async (borrowId) => {
+    setLoading(true);
+    const [err, data] = await cancelBorrow(borrowId);
+    setLoading(false);
+    if (err) {
+      setAlert({ type: 'error', message: err });
+    } else {
+      setAlert({ type: 'success', message: 'Hủy yêu cầu mượn sách thành công!' });
       if (selectedBook) setSelectedBook(null);
       fetchData();
     }
@@ -436,89 +488,114 @@ export default function UserHome() {
         <AlertToast type={alert.type} message={alert.message} />
 
         {/* Active Borrow Banner */}
-        {myBorrow && myBorrow.book && (
-          <div
-            style={{
-              background: myBorrow.status === 'PENDING'
-                ? 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)'
-                : 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-              border: myBorrow.status === 'PENDING' ? '1.5px solid #FCD34D' : '1px solid #F59E0B',
-              borderRadius: '16px',
-              padding: '1.1rem 1.5rem',
-              marginBottom: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '1rem',
-              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)',
-              flexWrap: 'wrap',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              {myBorrow.status === 'PENDING' ? (
-                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#FDE68A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B45309' }}>
-                  <Clock size={24} />
-                </div>
-              ) : (
-                <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                  <BookOpen size={24} />
-                </div>
-              )}
-              <div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: myBorrow.status === 'PENDING' ? '#B45309' : '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {myBorrow.status === 'PENDING' ? '⏳ ĐƠN MƯỢN ĐANG CHỜ DUYỆT' : '📖 SÁCH BẠN ĐANG MƯỢN'}
-                </div>
-                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#78350F', marginTop: '0.1rem' }}>
-                  {myBorrow.book.title} {myBorrow.book.author ? `(Tác giả: ${myBorrow.book.author})` : ''}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#92400E', marginTop: '0.2rem' }}>
-                  {myBorrow.dueDate && (
-                    <span>Hạn trả dự kiến: <strong>{new Date(myBorrow.dueDate).toLocaleDateString('vi-VN')}</strong></span>
+        {myBorrows && myBorrows.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+            {myBorrows.map((borrow) => (
+              <div
+                key={borrow.id}
+                style={{
+                  background: borrow.status === 'PENDING'
+                    ? 'linear-gradient(135deg, #FEF3C7 0%, #FFFBEB 100%)'
+                    : 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+                  border: borrow.status === 'PENDING' ? '1.5px solid #FCD34D' : '1px solid #F59E0B',
+                  borderRadius: '16px',
+                  padding: '1.1rem 1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.15)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                  {borrow.status === 'PENDING' ? (
+                    <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#FDE68A', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#B45309' }}>
+                      <Clock size={24} />
+                    </div>
+                  ) : (
+                    <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#F59E0B', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                      <BookOpen size={24} />
+                    </div>
                   )}
-                  {myBorrow.status === 'PENDING' && (
-                    <span style={{ fontStyle: 'italic', marginLeft: '0.5rem' }}>(Vui lòng chờ Ban Quản Trị phê duyệt trước khi nhận sách)</span>
-                  )}
+                  <div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: borrow.status === 'PENDING' ? '#B45309' : '#92400E', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {borrow.status === 'PENDING' ? '⏳ ĐƠN MƯỢN ĐANG CHỜ DUYỆT' : '📖 SÁCH BẠN ĐANG MƯỢN'}
+                    </div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#78350F', marginTop: '0.1rem' }}>
+                      {borrow.book?.title} {borrow.book?.author ? `(Tác giả: ${borrow.book?.author})` : ''}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#92400E', marginTop: '0.2rem' }}>
+                      {borrow.dueDate && (
+                        <span>Hạn trả dự kiến: <strong>{new Date(borrow.dueDate).toLocaleDateString('vi-VN')}</strong></span>
+                      )}
+                      {borrow.status === 'PENDING' && (
+                        <span style={{ fontStyle: 'italic', marginLeft: '0.5rem' }}>(Vui lòng chờ Ban Quản Trị phê duyệt trước khi nhận sách)</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {myBorrow.status === 'BORROWED' ? (
-              <button
-                type="button"
-                onClick={() => handleReturnBook(myBorrow.id)}
-                disabled={loading}
-                style={{
-                  padding: '0.55rem 1.25rem',
-                  background: '#D97706',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                Trả Sách Ngay
-              </button>
-            ) : (
-              <Link
-                to="/my-borrows"
-                style={{
-                  padding: '0.55rem 1.1rem',
-                  background: '#B45309',
-                  color: 'white',
-                  borderRadius: '10px',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  textDecoration: 'none',
-                  boxShadow: '0 2px 8px rgba(180, 83, 9, 0.25)',
-                }}
-              >
-                Xem Tiến Độ Duyệt
-              </Link>
-            )}
+                {borrow.status === 'BORROWED' ? (
+                  <button
+                    type="button"
+                    onClick={() => handleReturnBook(borrow.id)}
+                    disabled={loading}
+                    style={{
+                      padding: '0.55rem 1.25rem',
+                      background: '#D97706',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(217, 119, 6, 0.3)',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    Trả Sách Ngay
+                  </button>
+                ) : (
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleCancelBorrow(borrow.id)}
+                      disabled={loading}
+                      style={{
+                        padding: '0.55rem 1.1rem',
+                        background: '#FEF2F2',
+                        color: '#DC2626',
+                        border: '1px solid #FCA5A5',
+                        borderRadius: '10px',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(220, 38, 38, 0.15)',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      Hủy Yêu Cầu
+                    </button>
+                    <Link
+                      to="/my-borrows"
+                      style={{
+                        padding: '0.55rem 1.1rem',
+                        background: '#B45309',
+                        color: 'white',
+                        borderRadius: '10px',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        textDecoration: 'none',
+                        boxShadow: '0 2px 8px rgba(180, 83, 9, 0.25)',
+                      }}
+                    >
+                      Xem Tiến Độ Duyệt
+                    </Link>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -1030,26 +1107,40 @@ export default function UserHome() {
 
                     {/* Notice & Stock Badge */}
                     <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '0.85rem', marginTop: '0.5rem' }}>
+                      {/* Stock Details Grid */}
                       <div
                         style={{
-                          fontSize: '0.775rem',
-                          padding: '0.4rem 0.65rem',
+                          fontSize: '0.78rem',
+                          background: '#F8FAFC',
+                          padding: '0.5rem 0.65rem',
                           borderRadius: '8px',
-                          marginBottom: '0.85rem',
+                          border: '1px solid #E2E8F0',
+                          marginBottom: '0.75rem',
                           display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          background: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '#ECFDF5' : '#FEF2F2',
-                          color: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '#047857' : '#DC2626',
-                          border: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '1px solid #A7F3D0' : '1px solid #FCA5A5',
+                          flexDirection: 'column',
+                          gap: '3px',
                         }}
                       >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                          <Info size={14} /> Kho:
-                        </span>
-                        <strong style={{ fontWeight: 800 }}>
-                          Còn {book.availableStock !== undefined ? book.availableStock : (book.totalStock || 10)}/{book.totalStock || 10} cuốn
-                        </strong>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ color: '#64748B' }}>Kho khả dụng:</span>
+                          <strong style={{ color: (book.availableStock !== undefined ? book.availableStock : 10) > 0 ? '#059669' : '#DC2626' }}>
+                            {book.availableStock !== undefined ? book.availableStock : (book.totalStock || 10)}/{book.totalStock || 10} cuốn
+                          </strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#0284C7' }}>
+                          <span>Hạn mức mượn (50%):</span>
+                          <strong>
+                            {book.maxBorrowable !== undefined ? book.maxBorrowable : Math.floor((book.totalStock || 10) * 0.5)} cuốn
+                          </strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: (book.remainingBorrowable !== undefined ? book.remainingBorrowable : Math.max(0, Math.floor((book.totalStock || 10) * 0.5) - (book.borrowedCount || 0))) > 0 ? '#047857' : '#B45309' }}>
+                          <span>Còn cho mượn:</span>
+                          <strong>
+                            {book.remainingBorrowable !== undefined
+                              ? book.remainingBorrowable
+                              : Math.max(0, Math.floor((book.totalStock || 10) * 0.5) - (book.borrowedCount || 0))} cuốn
+                          </strong>
+                        </div>
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
@@ -1075,80 +1166,149 @@ export default function UserHome() {
                           <span>Chi tiết</span>
                         </button>
 
-                        {myBorrow && myBorrow.book?.id === book.id ? (
-                          <button
-                            type="button"
-                            onClick={() => handleReturnBook(myBorrow.id)}
-                            disabled={loading}
-                            style={{
-                              padding: '0.6rem',
-                              background: '#D97706',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '10px',
-                              fontWeight: 700,
-                              fontSize: '0.825rem',
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
-                            }}
-                          >
-                            Trả Sách
-                          </button>
-                        ) : myBorrow ? (
-                          <button
-                            type="button"
-                            disabled
-                            title="Bạn chỉ được mượn 1 cuốn sách tại một thời điểm. Vui lòng trả cuốn hiện tại trước!"
-                            style={{
-                              padding: '0.6rem',
-                              background: '#E2E8F0',
-                              color: '#94A3B8',
-                              border: 'none',
-                              borderRadius: '10px',
-                              fontWeight: 700,
-                              fontSize: '0.825rem',
-                              cursor: 'not-allowed',
-                            }}
-                          >
-                            Đang mượn khác
-                          </button>
-                        ) : (book.availableStock !== undefined ? book.availableStock : 10) <= 0 ? (
-                          <button
-                            type="button"
-                            disabled
-                            style={{
-                              padding: '0.6rem',
-                              background: '#FEF2F2',
-                              color: '#FCA5A5',
-                              border: '1px solid #FCA5A5',
-                              borderRadius: '10px',
-                              fontWeight: 700,
-                              fontSize: '0.825rem',
-                              cursor: 'not-allowed',
-                            }}
-                          >
-                            Hết Sách
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenBorrowModal(book)}
-                            disabled={loading}
-                            style={{
-                              padding: '0.6rem',
-                              background: '#10B981',
-                              color: 'white',
-                              border: 'none',
-                              borderRadius: '10px',
-                              fontWeight: 700,
-                              fontSize: '0.825rem',
-                              cursor: 'pointer',
-                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                            }}
-                          >
-                            Mượn Sách
-                          </button>
-                        )}
+                        {(() => {
+                          const activeBorrow = myBorrows.find((b) => b.book?.id === book.id) || (book.activeBorrowId ? { id: book.activeBorrowId, status: book.userBorrowStatus } : null);
+                          const isBorrowed = activeBorrow && activeBorrow.status === 'BORROWED';
+                          const isPending = activeBorrow && activeBorrow.status === 'PENDING';
+                          const totalStock = book.totalStock || 10;
+                          const maxBorrowable = book.maxBorrowable !== undefined ? book.maxBorrowable : Math.floor(totalStock * 0.5);
+                          const borrowedCount = book.borrowedCount || 0;
+                          const remainingBorrowable = book.remainingBorrowable !== undefined ? book.remainingBorrowable : Math.max(0, maxBorrowable - borrowedCount);
+                          const availableStock = book.availableStock !== undefined ? book.availableStock : totalStock;
+
+                          if (isBorrowed) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleReturnBook(activeBorrow.id)}
+                                disabled={loading}
+                                style={{
+                                  padding: '0.6rem',
+                                  background: '#D97706',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '10px',
+                                  fontWeight: 700,
+                                  fontSize: '0.825rem',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 8px rgba(217, 119, 6, 0.25)',
+                                }}
+                              >
+                                Trả Sách
+                              </button>
+                            );
+                          }
+
+                          if (isPending) {
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelBorrow(activeBorrow.id)}
+                                disabled={loading}
+                                title="Hủy yêu cầu mượn sách này"
+                                style={{
+                                  padding: '0.6rem',
+                                  background: '#FEF2F2',
+                                  color: '#DC2626',
+                                  border: '1px solid #FCA5A5',
+                                  borderRadius: '10px',
+                                  fontWeight: 700,
+                                  fontSize: '0.825rem',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.15)',
+                                }}
+                              >
+                                Hủy Yêu Cầu
+                              </button>
+                            );
+                          }
+
+                          if (maxBorrowable <= 0) {
+                            return (
+                              <button
+                                type="button"
+                                disabled
+                                title={`Sách chỉ có ${totalStock} cuốn (50% làm tròn xuống là 0), không mở mượn ra ngoài`}
+                                style={{
+                                  padding: '0.6rem',
+                                  background: '#F1F5F9',
+                                  color: '#94A3B8',
+                                  border: '1px solid #CBD5E1',
+                                  borderRadius: '10px',
+                                  fontWeight: 700,
+                                  fontSize: '0.75rem',
+                                  cursor: 'not-allowed',
+                                }}
+                              >
+                                Không Mượn
+                              </button>
+                            );
+                          }
+
+                          if (remainingBorrowable <= 0) {
+                            return (
+                              <button
+                                type="button"
+                                disabled
+                                title={`Đã cho mượn tối đa 50% (${maxBorrowable}/${totalStock} cuốn)`}
+                                style={{
+                                  padding: '0.6rem',
+                                  background: '#FEF2F2',
+                                  color: '#DC2626',
+                                  border: '1px solid #FECACA',
+                                  borderRadius: '10px',
+                                  fontWeight: 700,
+                                  fontSize: '0.75rem',
+                                  cursor: 'not-allowed',
+                                }}
+                              >
+                                Đạt Hạn Mức 50%
+                              </button>
+                            );
+                          }
+
+                          if (availableStock <= 0) {
+                            return (
+                              <button
+                                type="button"
+                                disabled
+                                style={{
+                                  padding: '0.6rem',
+                                  background: '#FEF2F2',
+                                  color: '#FCA5A5',
+                                  border: '1px solid #FCA5A5',
+                                  borderRadius: '10px',
+                                  fontWeight: 700,
+                                  fontSize: '0.825rem',
+                                  cursor: 'not-allowed',
+                                }}
+                              >
+                                Hết Sách
+                              </button>
+                            );
+                          }
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenBorrowModal(book)}
+                              disabled={loading}
+                              style={{
+                                padding: '0.6rem',
+                                background: '#10B981',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '10px',
+                                fontWeight: 700,
+                                fontSize: '0.825rem',
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
+                              }}
+                            >
+                              Mượn Sách
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -1441,45 +1601,95 @@ export default function UserHome() {
                 Đóng
               </button>
 
-              {myBorrow && myBorrow.book?.id === selectedBook.id ? (
-                <button
-                  type="button"
-                  className="modal-btn-save"
-                  style={{ background: '#D97706', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.25)' }}
-                  onClick={() => handleReturnBook(myBorrow.id)}
-                  disabled={loading}
-                >
-                  Trả Sách
-                </button>
-              ) : myBorrow ? (
-                <button
-                  type="button"
-                  className="modal-btn-save"
-                  disabled
-                  style={{ background: '#CBD5E1', color: '#64748B', cursor: 'not-allowed', boxShadow: 'none' }}
-                >
-                  Đang Mượn Cuốn Khác
-                </button>
-              ) : (selectedBook.availableStock !== undefined ? selectedBook.availableStock : 10) <= 0 ? (
-                <button
-                  type="button"
-                  className="modal-btn-save"
-                  disabled
-                  style={{ background: '#FEF2F2', color: '#FCA5A5', border: '1px solid #FCA5A5', cursor: 'not-allowed', boxShadow: 'none' }}
-                >
-                  Sách Đã Hết Kho
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="modal-btn-save"
-                  style={{ background: '#10B981', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}
-                  onClick={() => handleOpenBorrowModal(selectedBook)}
-                  disabled={loading}
-                >
-                  Mượn Cuốn Sách Này
-                </button>
-              )}
+              {(() => {
+                const activeBorrow = myBorrows.find((b) => b.book?.id === selectedBook.id) || (selectedBook.activeBorrowId ? { id: selectedBook.activeBorrowId, status: selectedBook.userBorrowStatus } : null);
+                const isBorrowed = activeBorrow && activeBorrow.status === 'BORROWED';
+                const isPending = activeBorrow && activeBorrow.status === 'PENDING';
+                const totalStock = selectedBook.totalStock || 10;
+                const maxBorrowable = selectedBook.maxBorrowable !== undefined ? selectedBook.maxBorrowable : Math.floor(totalStock * 0.5);
+                const borrowedCount = selectedBook.borrowedCount || 0;
+                const remainingBorrowable = selectedBook.remainingBorrowable !== undefined ? selectedBook.remainingBorrowable : Math.max(0, maxBorrowable - borrowedCount);
+                const availableStock = selectedBook.availableStock !== undefined ? selectedBook.availableStock : totalStock;
+
+                if (isBorrowed) {
+                  return (
+                    <button
+                      type="button"
+                      className="modal-btn-save"
+                      style={{ background: '#D97706', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.25)' }}
+                      onClick={() => handleReturnBook(activeBorrow.id)}
+                      disabled={loading}
+                    >
+                      Trả Sách
+                    </button>
+                  );
+                }
+
+                if (isPending) {
+                  return (
+                    <button
+                      type="button"
+                      className="modal-btn-save"
+                      style={{ background: '#DC2626', color: 'white', border: 'none', cursor: 'pointer', boxShadow: '0 4px 12px rgba(220, 38, 38, 0.25)' }}
+                      onClick={() => handleCancelBorrow(activeBorrow.id)}
+                      disabled={loading}
+                    >
+                      Hủy Yêu Cầu Mượn
+                    </button>
+                  );
+                }
+
+                if (maxBorrowable <= 0) {
+                  return (
+                    <button
+                      type="button"
+                      className="modal-btn-save"
+                      disabled
+                      style={{ background: '#F1F5F9', color: '#94A3B8', border: '1px solid #CBD5E1', cursor: 'not-allowed', boxShadow: 'none' }}
+                    >
+                      Không Cho Mượn
+                    </button>
+                  );
+                }
+
+                if (remainingBorrowable <= 0) {
+                  return (
+                    <button
+                      type="button"
+                      className="modal-btn-save"
+                      disabled
+                      style={{ background: '#FEF2F2', color: '#DC2626', border: '1px solid #FECACA', cursor: 'not-allowed', boxShadow: 'none' }}
+                    >
+                      Đạt Hạn Mức 50%
+                    </button>
+                  );
+                }
+
+                if (availableStock <= 0) {
+                  return (
+                    <button
+                      type="button"
+                      className="modal-btn-save"
+                      disabled
+                      style={{ background: '#FEF2F2', color: '#FCA5A5', border: '1px solid #FCA5A5', cursor: 'not-allowed', boxShadow: 'none' }}
+                    >
+                      Sách Đã Hết Kho
+                    </button>
+                  );
+                }
+
+                return (
+                  <button
+                    type="button"
+                    className="modal-btn-save"
+                    style={{ background: '#10B981', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}
+                    onClick={() => handleOpenBorrowModal(selectedBook)}
+                    disabled={loading}
+                  >
+                    Mượn Cuốn Sách Này
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -1504,6 +1714,7 @@ export default function UserHome() {
             </div>
 
             <div className="modal-body">
+              <AlertToast type="error" message={borrowModalError} />
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', background: '#F8FAFC', padding: '1rem', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
                 {borrowModalTarget.coverUrl ? (
                   <img
@@ -1527,8 +1738,129 @@ export default function UserHome() {
                 </div>
               </div>
 
+              {/* 50% Rule Limit Details */}
+              <div style={{ background: '#F8FAFC', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '0.825rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                  <span style={{ color: '#64748B' }}>Tổng số sách kho:</span>
+                  <strong style={{ color: '#0F172A' }}>{borrowModalTarget.totalStock || 10} cuốn</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: '#0284C7' }}>
+                  <span>Hạn mức cho mượn tối đa (50% làm tròn xuống):</span>
+                  <strong>{borrowModalTarget.maxBorrowable !== undefined ? borrowModalTarget.maxBorrowable : Math.floor((borrowModalTarget.totalStock || 10) * 0.5)} cuốn</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px', color: '#B45309' }}>
+                  <span>Đang được mượn / chờ duyệt:</span>
+                  <strong>{borrowModalTarget.borrowedCount || 0} cuốn</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#059669' }}>
+                  <span>Số lượng còn có thể cho mượn:</span>
+                  <strong>
+                    {borrowModalTarget.remainingBorrowable !== undefined
+                      ? borrowModalTarget.remainingBorrowable
+                      : Math.max(0, Math.floor((borrowModalTarget.totalStock || 10) * 0.5) - (borrowModalTarget.borrowedCount || 0))} cuốn
+                  </strong>
+                </div>
+              </div>
+
+              {/* Quantity input with stepper */}
+              {(() => {
+                const totalStock = borrowModalTarget.totalStock || 10;
+                const maxBorrowable = borrowModalTarget.maxBorrowable !== undefined ? borrowModalTarget.maxBorrowable : Math.floor(totalStock * 0.5);
+                const borrowedCount = borrowModalTarget.borrowedCount || 0;
+                const remainingBorrowable = borrowModalTarget.remainingBorrowable !== undefined ? borrowModalTarget.remainingBorrowable : Math.max(0, maxBorrowable - borrowedCount);
+                const availableStock = borrowModalTarget.availableStock !== undefined ? borrowModalTarget.availableStock : totalStock;
+                const maxAllowed = Math.max(1, Math.min(remainingBorrowable, availableStock));
+
+                return (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#334155', marginBottom: '0.4rem' }}>
+                      📚 Số Lượng Sách Muốn Mượn <span style={{ color: '#DC2626' }}>*</span>
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setBorrowQuantity((prev) => Math.max(1, prev - 1))}
+                        disabled={borrowQuantity <= 1}
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          border: '1px solid #CBD5E1',
+                          background: borrowQuantity <= 1 ? '#F1F5F9' : '#FFFFFF',
+                          color: borrowQuantity <= 1 ? '#94A3B8' : '#0F172A',
+                          fontSize: '1.25rem',
+                          fontWeight: 700,
+                          cursor: borrowQuantity <= 1 ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={maxAllowed}
+                        value={borrowQuantity}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (isNaN(val)) {
+                            setBorrowQuantity(1);
+                          } else {
+                            setBorrowQuantity(Math.max(1, Math.min(maxAllowed, val)));
+                          }
+                        }}
+                        style={{
+                          width: '90px',
+                          height: '40px',
+                          textAlign: 'center',
+                          borderRadius: '10px',
+                          border: '1px solid #CBD5E1',
+                          fontSize: '1.05rem',
+                          fontWeight: 800,
+                          color: '#0F172A',
+                          outline: 'none',
+                          background: '#FFFFFF',
+                        }}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setBorrowQuantity((prev) => Math.min(maxAllowed, prev + 1))}
+                        disabled={borrowQuantity >= maxAllowed}
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          borderRadius: '10px',
+                          border: '1px solid #CBD5E1',
+                          background: borrowQuantity >= maxAllowed ? '#F1F5F9' : '#FFFFFF',
+                          color: borrowQuantity >= maxAllowed ? '#94A3B8' : '#0F172A',
+                          fontSize: '1.25rem',
+                          fontWeight: 700,
+                          cursor: borrowQuantity >= maxAllowed ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        +
+                      </button>
+                      <span style={{ fontSize: '0.825rem', color: '#64748B', marginLeft: '0.25rem' }}>
+                        (Tối đa: <strong style={{ color: '#059669' }}>{maxAllowed}</strong> cuốn)
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.775rem', color: '#64748B', marginTop: '0.3rem' }}>
+                      * Số lượng mượn tối đa dựa trên hạn mức 50% ({maxBorrowable} cuốn) và tồn kho thực tế ({availableStock} cuốn).
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Due date input */}
-              <div style={{ marginTop: '0.5rem' }}>
+              <div style={{ marginTop: '0.25rem' }}>
                 <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, color: '#334155', marginBottom: '0.4rem' }}>
                   📅 Ngày Hẹn Trả Sách <span style={{ color: '#DC2626' }}>*</span>
                 </label>
